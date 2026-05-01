@@ -1,0 +1,13 @@
+{
+  "name": "Delete person success",
+  "request": {
+    "method": "DELETE",
+    "urlPath": "/v1/familyties/lastnames/Brown",
+    "queryParameters": {
+      "firstname": { "equalTo": "Alice" }
+    }
+  },
+  "response": {
+    "status": 204
+  }
+}

@@ -1,0 +1,280 @@
+name: Family Ties - Build
+on:
+  push:
+    branches-ignore:
+      - main
+      - maintenance
+    paths:
+      - 'family-ties/**/*.gradle'
+      - 'family-ties/**/gradle.*'
+      - 'family-ties/gradle/**'
+      - 'family-ties/versions.properties'
+      - 'family-ties/app/**'
+      - '.github/workflows/family-ties-build.yml'
+
+jobs:
+  Calculate-Version:
+    uses: ./.github/workflows/semantic-version-calculate.yml
+    with:
+      fail_on_empty_version: false
+      fail_on_existing_tag: false
+      project_dir: family-ties
+    secrets:
+      sem_rel_token_token: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+
+  Determine-Release-Type:
+    needs: Calculate-Version
+    uses: ./.github/workflows/determine-release-type.yml
+
+  Security-Policy:
+    needs: Build-Family-Ties
+    uses: ./.github/workflows/security-policy.yml
+    with:
+      project_dir: family-ties
+      app_dir: app
+      https_url: https://localhost:8443/actuator/health
+      http_url: http://localhost:8443/actuator/health
+    secrets:
+      ssl_keystore_password: ${{ secrets.SSL_KEYSTORE_PASSWORD }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      H2_PASSWORD: ${{ secrets.H2_PASSWORD }}
+
+  Build-Family-Ties:
+    name: Build Family Ties
+    needs: Calculate-Version
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    runs-on: ubuntu-latest
+
+    env:
+      REPORTS_DIR: family-ties/app/build/reports
+      GRADLE_PROPERTIES_FILE: ./family-ties/gradle.properties
+      GRADLE_VERSION_REGEX: version\s*=\s*[0-9]\\+\.[0-9]\\+\.[0-9]\\+[a-zA-Z0-9.-]*
+      OPENAPI_FILE: ./family-ties/app/src/main/resources/openapi_familyties.yaml
+      OPENAPI_VERSION_REGEX: version\s*:\s*'[0-9]\\+\.[0-9]\\+\.[0-9]\\+[a-zA-Z0-9.-]*'
+      VERSION: ${{ needs.Calculate-Version.outputs.next_version }}
+      SSL_KEYSTORE_PASSWORD: ${{ secrets.SSL_KEYSTORE_PASSWORD }}
+      SERVER_PORT: 8443
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Update version in Gradle property file
+        run: |
+          echo "VERSION=${{ env.VERSION }}"
+          echo ===== Before - ${{ env.GRADLE_PROPERTIES_FILE }} =====
+          cat ${{ env.GRADLE_PROPERTIES_FILE }}
+          sed -i "s/${{ env.GRADLE_VERSION_REGEX }}/version = ${{ env.VERSION }}/g" ${{ env.GRADLE_PROPERTIES_FILE }}
+          echo ===== After - ${{ env.GRADLE_PROPERTIES_FILE }} =====
+          cat ${{ env.GRADLE_PROPERTIES_FILE }}
+
+      - name: Update version in OpenAPI specification
+        run: |
+          echo "Updating OpenAPI version to ${{ env.VERSION }}"
+          echo ===== Before - ${{ env.OPENAPI_FILE }} =====
+          grep -A 2 'info:' ${{ env.OPENAPI_FILE }}
+          sed -i "s/${{ env.OPENAPI_VERSION_REGEX }}/version: '${{ env.VERSION }}'/g" ${{ env.OPENAPI_FILE }}
+          echo ===== After - ${{ env.OPENAPI_FILE }} =====
+          grep -A 2 'info:' ${{ env.OPENAPI_FILE }}
+
+      - name: Build Family Ties with Gradle
+        run: |
+          cd family-ties
+          ./gradlew build
+
+  System-Tests:
+    name: Run System and Contract Tests
+    needs: Build-Family-Ties
+    runs-on: ubuntu-latest
+    
+    env:
+      SSL_KEYSTORE_PASSWORD: ${{ secrets.SSL_KEYSTORE_PASSWORD }}
+      POSTGRES_DB: familyties
+      POSTGRES_USER: familyties
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      H2_USERNAME: sa
+      H2_PASSWORD: ${{ secrets.H2_PASSWORD }}
+      SERVER_PORT: 8443
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+      
+      - name: Generate system-test keystore
+        uses: ./.github/actions/generate-keystore
+        with:
+          keystore_path: family-ties/app/src/testSystem/resources/ssl/keystore.p12
+          alias: familyties
+          dname: "CN=localhost, OU=Family Ties, O=Arc-E-Tect, L=Amsterdam, S=NH, C=NL"
+          ssl_keystore_password: ${{ secrets.SSL_KEYSTORE_PASSWORD }}
+      
+      - name: Run System and Contract Tests
+        run: |
+          cd family-ties
+          ./gradlew testSystem testContract --parallel --no-daemon
+        # testSystem and testContract run in parallel against real app
+        # Both must pass before E2E tests can run
+
+  WireMock-Tests:
+    name: Verify WireMock Stubs
+    needs: Build-Family-Ties
+    runs-on: ubuntu-latest
+    
+    env:
+      SSL_KEYSTORE_PASSWORD: ${{ secrets.SSL_KEYSTORE_PASSWORD }}
+      POSTGRES_DB: familyties
+      POSTGRES_USER: familyties
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      H2_USERNAME: sa
+      H2_PASSWORD: ${{ secrets.H2_PASSWORD }}
+      SERVER_PORT: 8443
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+      
+      - name: Generate system-test keystore
+        uses: ./.github/actions/generate-keystore
+        with:
+          keystore_path: family-ties/app/src/testSystem/resources/ssl/keystore.p12
+          alias: familyties
+          dname: "CN=localhost, OU=Family Ties, O=Arc-E-Tect, L=Amsterdam, S=NH, C=NL"
+          ssl_keystore_password: ${{ secrets.SSL_KEYSTORE_PASSWORD }}
+      
+      - name: Verify WireMock Stubs
+        run: |
+          cd family-ties
+          ./gradlew verifyWiremock --no-configuration-cache --no-daemon
+        # Uses Docker Compose Gradle plugin for automatic WireMock lifecycle
+        # Runs both semantic (system) and syntactic (contract) tests against WireMock
+        # Ensures WireMock is complete drop-in: behavior + OpenAPI compliance
+
+  E2E-Tests:
+    name: Run E2E Tests
+    needs: [Calculate-Version, System-Tests, WireMock-Tests]
+    runs-on: ubuntu-latest
+    
+    env:
+      VERSION: ${{ needs.Calculate-Version.outputs.next_version }}
+      SSL_KEYSTORE_PASSWORD: ${{ secrets.SSL_KEYSTORE_PASSWORD }}
+      POSTGRES_DB: familyties
+      POSTGRES_USER: familyties
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      H2_USERNAME: sa
+      H2_PASSWORD: ${{ secrets.H2_PASSWORD }}
+      SERVER_PORT: 8443
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+      
+      - name: Generate system-test keystore
+        uses: ./.github/actions/generate-keystore
+        with:
+          keystore_path: family-ties/app/src/testSystem/resources/ssl/keystore.p12
+          alias: familyties
+          dname: "CN=localhost, OU=Family Ties, O=Arc-E-Tect, L=Amsterdam, S=NH, C=NL"
+          ssl_keystore_password: ${{ secrets.SSL_KEYSTORE_PASSWORD }}
+      
+      - name: Generate main keystore
+        uses: ./.github/actions/generate-keystore
+        with:
+          keystore_path: family-ties/app/src/main/resources/keystore.p12
+          alias: familyties
+          dname: "CN=localhost, OU=Family Ties, O=Arc-E-Tect, L=Amsterdam, S=NH, C=NL"
+          ssl_keystore_password: ${{ secrets.SSL_KEYSTORE_PASSWORD }}
+      
+      - name: Generate e2e-test keystore
+        uses: ./.github/actions/generate-keystore
+        with:
+          keystore_path: family-ties/app/src/testE2E/resources/ssl/keystore.p12
+          alias: familyties
+          dname: "CN=localhost, OU=Family Ties, O=Arc-E-Tect, L=Amsterdam, S=NH, C=NL"
+          ssl_keystore_password: ${{ secrets.SSL_KEYSTORE_PASSWORD }}
+
+      - name: Setup test environment
+        run: |
+          cd family-ties
+          ./setup-test-env.sh
+      
+      - name: Run E2E Tests (automatic Docker Compose lifecycle)
+        run: |
+          cd family-ties
+          export DOCKER_BUILDKIT=1
+          export BUILDKIT_PROGRESS=plain
+          ./gradlew testE2E --no-daemon
+        # Note: testE2E automatically manages Docker Compose:
+        #   - Starts stack (postgres + containerized app)
+        #   - Loads environment from app/src/testE2E/resources/.env
+        #   - Runs 26 E2E test scenarios
+        #   - Stops and cleans up stack (even on failure)
+        #   - Uses BuildKit for improved caching and build performance
+      
+      - name: Show Docker Compose logs on failure
+        if: failure()
+        run: |
+          cd family-ties
+          ./gradlew e2eComposeLogs
+
+  Workflow-Summary:
+    name: Workflow Summary
+    needs: [Build-Family-Ties, Determine-Release-Type]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output build completion
+        run: |
+          echo "Family Ties ${{ needs.Determine-Release-Type.outputs.release_type }} workflow completed"
+          echo "::notice title=Build Complete::Family Ties ${{ needs.Determine-Release-Type.outputs.release_type }} workflow completed"

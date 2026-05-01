@@ -1,0 +1,17 @@
+{
+  "priority": 1,
+  "name": "SQL injection in lastname lookup",
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/v1/familyties/lastnames/.*[';\"=\\\\].*|.*OR.*1.*=.*1.*"
+  },
+  "response": {
+    "status": 400,
+    "jsonBody": {
+      "timestamp": "2025-01-01T12:00:00Z",
+      "message": "findByLastName.lastName: must match \"^[a-zA-Z0-9\\\\s'-]+$\"",
+      "path": "/v1/familyties/lastnames/Smith' OR '1'='1"
+    },
+    "headers": { "Content-Type": "application/json" }
+  }
+}
