@@ -1,0 +1,127 @@
+name: Blue Needle - Build
+on:
+  push:
+    branches-ignore:
+      - main
+      - maintenance
+    paths:
+      - 'blue-needle/**'
+      - 'red-thread/system-admin/**'
+      - 'red-thread/setup-test-env.sh'
+      - '.github/workflows/blue-needle-build.yml'
+      - '.github/workflows/semantic-version-calculate.yml'
+      - '.github/workflows/semantic-version-apply.yml'
+
+jobs:
+  Calculate-Version:
+    uses: ./.github/workflows/semantic-version-calculate.yml
+    with:
+      fail_on_empty_version: false
+      fail_on_existing_tag: false
+      project_dir: blue-needle
+    secrets:
+      sem_rel_token_token: ${{ secrets.SEMANTIC_RELEASE_TOKEN }}
+
+  Build-Blue-Needle:
+    name: Build Blue Needle
+    needs: Calculate-Version
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      packages: read
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Restore JaCoCo Exclusion Report Plugin from cache
+        id: plugin-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.m2/repository/com/arc-e-tect
+          key: jacoco-plugin-${{ hashFiles('sedr_utils/jacoco-exclusion-report/**') }}
+
+      - name: Build and publish JaCoCo Exclusion Report Plugin
+        if: steps.plugin-cache.outputs.cache-hit != 'true'
+        run: |
+          cd sedr_utils/jacoco-exclusion-report
+          chmod +x ./gradlew
+          ./gradlew publishToMavenLocal --no-daemon
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+          cache-dependency-path: blue-needle/package-lock.json
+
+      - name: Generate Red Thread WireMock stubs
+        run: |
+          cd red-thread
+          ./gradlew :auth-server:clean :auth-server:docGen :user-account:clean :user-account:docGen :system-admin:clean :system-admin:docGen :relationship:clean :relationship:docGen :social-network:clean :social-network:docGen --no-daemon --no-build-cache --info
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.SEDR_AUTOMATION_TOKEN }}
+
+      - name: Install Blue Needle dependencies
+        run: |
+          cd blue-needle
+          npm ci
+
+      - name: Prepare Blue Needle mappings from generated stubs
+        run: |
+          cd blue-needle
+          npm run stubs:prepare
+
+      - name: Build Blue Needle
+        run: |
+          cd blue-needle
+          npm run build
+
+      - name: Run Blue Needle smoke tests
+        run: |
+          cd blue-needle
+          npm run smoke:test
+
+      - name: Upload Blue Needle WireMock mappings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: blue-needle-wiremock-mappings
+          path: blue-needle/wiremock/mappings/**
+
+      - name: Upload Blue Needle build output
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: blue-needle-dist
+          path: blue-needle/dist/**
+
+  Determine-Release-Type:
+    needs: Calculate-Version
+    uses: ./.github/workflows/determine-release-type.yml
+
+  Workflow-Summary:
+    name: Workflow Summary
+    needs: [Build-Blue-Needle, Determine-Release-Type]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Output build completion
+        run: |
+          echo "Blue Needle ${{ needs.Determine-Release-Type.outputs.release_type }} workflow completed"
+          echo "::notice title=Build Complete::Blue Needle ${{ needs.Determine-Release-Type.outputs.release_type }} workflow completed"
