@@ -1,0 +1,53 @@
+name: Extract Changelog Entry
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: 'Branch to extract changelog from'
+        required: true
+        type: string
+      project_dir:
+        description: 'Project directory (e.g., red-thread, cucumber-salad, family-ties, or empty for root)'
+        required: false
+        type: string
+        default: ''
+    outputs:
+      version:
+        description: 'Extracted version number'
+        value: ${{ jobs.extract.outputs.version }}
+      release_notes:
+        description: 'Extracted changelog entry with links'
+        value: ${{ jobs.extract.outputs.release_notes }}
+      release_notes_clean:
+        description: 'Extracted changelog entry without links (for Discord)'
+        value: ${{ jobs.extract.outputs.release_notes_clean }}
+
+jobs:
+  extract:
+    name: Extract and Clean Changelog
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract_changelog.outputs.version }}
+      release_notes: ${{ steps.extract_changelog.outputs.release_notes }}
+      release_notes_clean: ${{ steps.clean_changelog.outputs.changelog_clean }}
+
+    steps:
+      - name: Checkout branch with updated CHANGELOG
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 1
+
+      - name: Extract changelog for current version
+        id: extract_changelog
+        uses: Arc-E-Tect/SoftwareEngineeringDoneRight-Code/.github/actions/extract-release-notes@main
+        with:
+          project_dir: ${{ inputs.project_dir }}
+
+      - name: Cleanup changelog entry for Discord
+        id: clean_changelog
+        uses: Arc-E-Tect/SoftwareEngineeringDoneRight-Code/.github/actions/cleanup-changelog-for-discord@main
+        with:
+          changelog_text: ${{ steps.extract_changelog.outputs.release_notes }}
+          version: ${{ steps.extract_changelog.outputs.version }}
