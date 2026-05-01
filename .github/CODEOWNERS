@@ -1,0 +1,13 @@
+# CODEOWNERS file for SoftwareEngineeringDoneRight-Examples
+
+# Default code owners for the repository
+* @Arc-E-Tect/sedr-examples
+
+# GitHub Actions workflows - require CI maintainers approval
+.github/workflows/ @Arc-E-Tect/sedr-examples
+
+# Security policies and hooks - require security team approval
+SECRETS_POLICY.md @Arc-E-Tect/sedr-examples
+ZERO_CREDENTIALS_POLICY.md @Arc-E-Tect/sedr-examples
+SECURITY.md @Arc-E-Tect/sedr-examples
+.githooks/ @Arc-E-Tect/sedr-examples
