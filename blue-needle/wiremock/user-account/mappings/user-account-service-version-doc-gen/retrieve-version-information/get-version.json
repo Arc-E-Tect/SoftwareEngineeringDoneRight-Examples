@@ -1,0 +1,20 @@
+{
+  "id": "fbe1a70e-ed04-435e-9fc4-4b4bc6cfa775",
+  "request": {
+    "urlPath": "/",
+    "method": "GET",
+    "headers": {
+      "Accept": {
+        "equalTo": "application/json"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": "{\n  \"versionName\": \"UserAccount\",\n  \"versionCode\": 1.0\n}\n",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "uuid": "fbe1a70e-ed04-435e-9fc4-4b4bc6cfa775"
+}

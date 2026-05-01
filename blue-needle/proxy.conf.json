@@ -1,0 +1,67 @@
+{
+  "/actuator": {
+    "target": "https://localhost:8443",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/iff": {
+    "target": "https://localhost:8443",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/api/iff": "" }
+  },
+  "/v1": {
+    "target": "https://localhost:8443",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  },
+  "/user-account/actuator": {
+    "target": "https://localhost:8444",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/user-account": "" }
+  },
+  "/user-account/api/version": {
+    "target": "https://localhost:8444",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/user-account/api/version": "/" }
+  },
+  "/auth-server/actuator": {
+    "target": "https://localhost:8445",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/auth-server": "" }
+  },
+  "/auth-server/api/version": {
+    "target": "https://localhost:8445",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/auth-server/api/version": "/" }
+  },
+  "/relationship/actuator": {
+    "target": "https://localhost:8446",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/relationship": "" }
+  },
+  "/relationship/api/version": {
+    "target": "https://localhost:8446",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/relationship/api/version": "/" }
+  },
+  "/social-network/actuator": {
+    "target": "https://localhost:8447",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/social-network": "" }
+  },
+  "/social-network/api/version": {
+    "target": "https://localhost:8447",
+    "secure": false,
+    "changeOrigin": true,
+    "pathRewrite": { "^/social-network/api/version": "/" }
+  }
+}

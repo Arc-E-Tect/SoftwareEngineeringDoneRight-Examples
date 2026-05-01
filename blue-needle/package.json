@@ -1,0 +1,49 @@
+{
+  "name": "blue-needle",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve --proxy-config proxy.conf.json",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "stubs:prepare": "node scripts/prepare-wiremock-stubs.mjs",
+    "wiremock:up": "npm run stubs:prepare && docker compose -f docker-compose.iff.yml up -d --force-recreate",
+    "wiremock:down": "docker compose -f docker-compose.iff.yml down -v",
+    "iff:up": "docker network create iff-e2e-network 2>/dev/null || true && docker compose -f ../red-thread/e2e/src/testE2E/resources/docker-compose.e2e.yml up -d",
+    "iff:down": "docker compose -f ../red-thread/e2e/src/testE2E/resources/docker-compose.e2e.yml down",
+    "smoke:test:run": "cucumber-js",
+    "smoke:test": "node scripts/run-smoke.mjs",
+    "smoke:test:iff": "IFF_MODE=real node scripts/run-smoke.mjs"
+  },
+  "private": true,
+  "packageManager": "npm@11.13.0",
+  "engines": {
+    "node": "^22.14.0 || ^24.10.0"
+  },
+  "dependencies": {
+    "@angular/common": "^21.2.7",
+    "@angular/compiler": "^21.2.7",
+    "@angular/core": "^21.2.7",
+    "@angular/platform-browser": "^21.2.7",
+    "@angular/router": "^21.2.7",
+    "rxjs": "~7.8.2",
+    "tslib": "^2.8.1"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^12.8.2",
+    "@angular/build": "^21.2.6",
+    "@angular/cli": "^21.2.6",
+    "@angular/compiler-cli": "^21.2.7",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^12.0.6",
+    "@semantic-release/npm": "^13.1.5",
+    "@semantic-release/release-notes-generator": "^14.1.0",
+    "playwright-core": "^1.59.1",
+    "prettier": "^3.8.3",
+    "semantic-release": "^25.0.3",
+    "typescript": "~5.9.3"
+  }
+}

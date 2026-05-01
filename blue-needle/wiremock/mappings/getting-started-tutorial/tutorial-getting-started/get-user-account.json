@@ -1,0 +1,28 @@
+{
+  "id": "600b18a6-abdb-4869-b16a-ce6947887b08",
+  "request": {
+    "urlPath": "/v1/user-accounts/alice_in_wonderland",
+    "method": "GET",
+    "headers": {
+      "Content-Type": {
+        "equalTo": "application/json"
+      },
+      "Accept": {
+        "equalTo": "application/json"
+      },
+      "x-api-key": {
+        "equalTo": "test-api-key"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": "{\n  \"username\" : \"alice_in_wonderland\"\n}",
+    "headers": {
+      "Content-Type": "application/json",
+      "Matched-Stub-Id": "bce22dbd-21a1-4d67-bf77-8fd1c4e60b45",
+      "Transfer-Encoding": "chunked"
+    }
+  },
+  "uuid": "600b18a6-abdb-4869-b16a-ce6947887b08"
+}

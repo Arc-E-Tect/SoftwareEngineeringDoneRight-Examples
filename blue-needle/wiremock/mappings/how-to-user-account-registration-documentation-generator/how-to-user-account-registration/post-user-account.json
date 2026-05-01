@@ -1,0 +1,33 @@
+{
+  "id": "98c40c84-5a5b-4974-9e5a-4a13e006f1f9",
+  "request": {
+    "urlPath": "/v1/user-accounts",
+    "method": "POST",
+    "headers": {
+      "Content-Type": {
+        "equalTo": "application/json"
+      },
+      "Accept": {
+        "equalTo": "application/json"
+      },
+      "x-api-key": {
+        "equalTo": "test-api-key"
+      }
+    },
+    "bodyPatterns": [
+      {
+        "equalToJson": "{\n    \"consent\": true,\n    \"username\": \"alice_in_wonderland\",\n    \"password\": \"The wh!te rabbit ate mushr00ms\"\n}\n"
+      }
+    ]
+  },
+  "response": {
+    "status": 201,
+    "body": "{\n  \"username\" : \"alice_in_wonderland\"\n}",
+    "headers": {
+      "Content-Type": "application/json",
+      "Matched-Stub-Id": "0a734670-bf33-45f5-bb80-358f9063c0e4",
+      "Transfer-Encoding": "chunked"
+    }
+  },
+  "uuid": "98c40c84-5a5b-4974-9e5a-4a13e006f1f9"
+}

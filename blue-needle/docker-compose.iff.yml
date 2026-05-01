@@ -1,0 +1,81 @@
+# Blue Needle — IFF WireMock constellation
+#
+# Currently only system-admin is wired up (fully implemented micro-frontend).
+# Uncomment additional services as each micro-frontend is implemented.
+#
+# Stubs must be prepared before starting:
+#   npm run stubs:prepare
+#
+# Start:  npm run wiremock:up
+# Stop:   npm run wiremock:down
+
+services:
+  system-admin-wiremock:
+    image: wiremock/wiremock:3.13.2-3
+    platform: linux/amd64
+    container_name: blue-needle-system-admin-wiremock
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./wiremock/system-admin:/home/wiremock:ro
+    command:
+      - "--https-port"
+      - "8443"
+      - "--global-response-templating"
+      - "--verbose"
+
+  user-account-wiremock:
+    image: wiremock/wiremock:3.13.2-3
+    platform: linux/amd64
+    container_name: blue-needle-user-account-wiremock
+    ports:
+      - "8444:8443"
+    volumes:
+      - ./wiremock/user-account:/home/wiremock:ro
+    command:
+      - "--https-port"
+      - "8443"
+      - "--global-response-templating"
+      - "--verbose"
+
+  auth-server-wiremock:
+    image: wiremock/wiremock:3.13.2-3
+    platform: linux/amd64
+    container_name: blue-needle-auth-server-wiremock
+    ports:
+      - "8445:8443"
+    volumes:
+      - ./wiremock/auth-server:/home/wiremock:ro
+    command:
+      - "--https-port"
+      - "8443"
+      - "--global-response-templating"
+      - "--verbose"
+
+  relationship-wiremock:
+    image: wiremock/wiremock:3.13.2-3
+    platform: linux/amd64
+    container_name: blue-needle-relationship-wiremock
+    ports:
+      - "8446:8443"
+    volumes:
+      - ./wiremock/relationship:/home/wiremock:ro
+    command:
+      - "--https-port"
+      - "8443"
+      - "--global-response-templating"
+      - "--verbose"
+
+  social-network-wiremock:
+    image: wiremock/wiremock:3.13.2-3
+    platform: linux/amd64
+    container_name: blue-needle-social-network-wiremock
+    ports:
+      - "8447:8443"
+    volumes:
+      - ./wiremock/social-network:/home/wiremock:ro
+    command:
+      - "--https-port"
+      - "8443"
+      - "--global-response-templating"
+      - "--verbose"

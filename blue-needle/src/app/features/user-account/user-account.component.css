@@ -1,0 +1,5 @@
+/* User Account — Periwinkle Blue (220°)
+   Personal, identity-focused, approachable. */
+:host {
+  --accent-hue: 220;
+}
