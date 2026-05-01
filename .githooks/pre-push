@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+#
+# Pre-push hook to:
+# 1. Check if pushing to a merged/closed PR branch
+# 2. Validate semantic-release configuration
+#
+# This prevents pushing broken release configs or commits to already-merged PRs
+#
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo "🔍 Running pre-push checks..."
+
+#============================================================================
+# CHECK 1: Verify PR status for current branch
+#============================================================================
+
+CURRENT_BRANCH=$(git branch --show-current)
+
+# Skip PR check for main/master branches
+if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+  echo "✅ Pushing to $CURRENT_BRANCH - no PR check needed"
+elif [ "$CURRENT_BRANCH" = "maintenance" ]; then
+  echo "✅ Pushing to maintenance branch - no PR check needed"
+elif echo "$CURRENT_BRANCH" | grep -qE '^(sedr|section|chapter)'; then
+  echo "✅ Pushing to section/chapter branch - no PR check needed"
+elif echo "$CURRENT_BRANCH" | grep -qE '^worktrees/'; then
+  echo "✅ Pushing to worktree branch - no PR check needed"
+else
+  # Check if gh CLI is available
+  if ! command -v gh &> /dev/null; then
+    echo -e "${YELLOW}⚠️  GitHub CLI (gh) not found - skipping PR status check${NC}"
+    echo "   Install with: brew install gh"
+  else
+    # Check PR status
+    PR_STATE=$(gh pr view "$CURRENT_BRANCH" --json state --jq .state 2>/dev/null || echo "NONE")
+
+    if [ "$PR_STATE" = "MERGED" ]; then
+      echo -e "${RED}❌ ERROR: PR for branch '$CURRENT_BRANCH' is already MERGED!${NC}"
+      echo ""
+      echo "   Create a new branch instead of pushing to this one"
+      echo "   To bypass this check: git push --no-verify (NOT RECOMMENDED)"
+      exit 1
+    elif [ "$PR_STATE" = "CLOSED" ]; then
+      echo -e "${YELLOW}⚠️  WARNING: PR for branch '$CURRENT_BRANCH' is CLOSED!${NC}"
+      echo ""
+      echo "   Consider creating a new branch instead"
+      echo -e "${YELLOW}   Continue pushing? (Ctrl+C to abort, Enter to continue)${NC}"
+      read -r
+    else
+      echo "✅ PR status check passed"
+    fi
+  fi
+fi
+
+#============================================================================
+# CHECK 2: Validate semantic-release configuration
+#============================================================================
+
+# Check if we're pushing to main
+while read local_ref local_sha remote_ref remote_sha
+do
+    if [[ "$remote_ref" == "refs/heads/main" ]]; then
+        # Get list of changed files
+        if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+            continue
+        fi
+
+        changed_files=$(git diff --name-only "$remote_sha" "$local_sha" 2>/dev/null)
+
+        # Check if any release.config.js was modified
+        if echo "$changed_files" | grep -q "release.config.js"; then
+            echo -e "${YELLOW}🔍 Detected changes to release.config.js${NC}"
+            echo -e "${YELLOW}🧪 Running semantic-release dry-run validation...${NC}"
+            echo ""
+
+            # Check for GITHUB_TOKEN
+            if [ -z "$GITHUB_TOKEN" ]; then
+                echo -e "${RED}❌ GITHUB_TOKEN not set${NC}"
+                echo -e "${YELLOW}💡 Set it with: export GITHUB_TOKEN=your_token${NC}"
+                exit 1
+            fi
+
+            for config_file in $(echo "$changed_files" | grep "release.config.js"); do
+                echo -e "${YELLOW}Validating $config_file...${NC}"
+
+                if npx semantic-release --dry-run --no-ci > /tmp/semantic-release-check.log 2>&1; then
+                    echo -e "${GREEN}✅ $config_file configuration is valid!${NC}"
+                    echo ""
+                else
+                    echo -e "${RED}❌ $config_file validation failed!${NC}"
+                    echo ""
+                    echo -e "${YELLOW}Output:${NC}"
+                    tail -50 /tmp/semantic-release-check.log
+                    echo ""
+                    echo -e "${RED}Push aborted. Fix the configuration and try again.${NC}"
+                    exit 1
+                fi
+            done
+
+            echo -e "${GREEN}✅ All semantic-release configurations are valid!${NC}"
+        fi
+    fi
+done
+
+echo ""
+echo "✅ All pre-push checks passed"
+exit 0
