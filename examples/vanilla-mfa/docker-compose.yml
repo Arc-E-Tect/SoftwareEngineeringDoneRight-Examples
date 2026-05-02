@@ -1,0 +1,63 @@
+# Vanilla MFA Example — Docker Compose
+#
+# Topology (plain HTTP, no auth, no TLS):
+#
+#   Browser → mfe (nginx :4200) → mfa (Spring Boot :8080) → ms (Spring Boot :8081)
+#
+# Start:  docker compose up --build
+# Stop:   docker compose down -v
+#
+# Once running, open http://localhost:4200 in a browser.
+
+services:
+
+  # ── Microservice (Family Ties) ──────────────────────────────────────────────
+  ms:
+    build:
+      context: ./ms
+      dockerfile: Dockerfile
+    image: vanilla-mfa/ms:latest
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      H2_PASSWORD: ""
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+
+  # ── Micro-Frontend Adapter (pass-through proxy) ─────────────────────────────
+  mfa:
+    build:
+      context: ./mfa
+      dockerfile: Dockerfile
+    image: vanilla-mfa/mfa:latest
+    environment:
+      SPRING_PROFILES_ACTIVE: vanilla
+      MFE_ADAPTER_MICROSERVICE_BASE_URL: http://ms:8081
+    ports:
+      - "8080:8080"
+    depends_on:
+      ms:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+
+  # ── Micro-Frontend (Angular via nginx) ─────────────────────────────────────
+  mfe:
+    build:
+      context: ./mfe
+      dockerfile: Dockerfile
+    image: vanilla-mfa/mfe:latest
+    ports:
+      - "4200:80"
+    depends_on:
+      mfa:
+        condition: service_healthy

@@ -1,0 +1,28 @@
+type: object
+required:
+  - fromFirstName
+  - fromLastName
+  - toFirstName
+  - toLastName
+  - type
+properties:
+  fromFirstName:
+    type: string
+    pattern: "^[a-zA-Z0-9\\s'-]+$"
+    example: John
+  fromLastName:
+    type: string
+    pattern: "^[a-zA-Z0-9\\s'-]+$"
+    example: Smith
+  toFirstName:
+    type: string
+    pattern: "^[a-zA-Z0-9\\s'-]+$"
+    example: Jane
+  toLastName:
+    type: string
+    pattern: "^[a-zA-Z0-9\\s'-]+$"
+    example: Smith
+  type:
+    type: string
+    pattern: "^[a-z]+$"
+    example: parent

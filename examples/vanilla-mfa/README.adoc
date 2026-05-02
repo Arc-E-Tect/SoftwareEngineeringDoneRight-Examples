@@ -1,0 +1,187 @@
+= Vanilla MFA Example
+:toc: left
+:toclevels: 3
+:icons: font
+:source-highlighter: rouge
+
+A minimal, runnable end-to-end example of the Micro-Frontend Adapter (MFA) pattern with no authentication, no TLS, and no session management.
+It demonstrates the core proxy flow — Angular MFE → MFA → Microservice — using only plain HTTP.
+
+== Architecture Overview
+
+[source]
+----
+Browser
+  └─► MFE   (Angular, port 4200)
+        └─► MFA   (Spring Boot 4, port 8080, profile: vanilla)
+              └─► MS    (Spring Boot 4, port 8081, Family Ties)
+----
+
+=== Components
+
+`mfe/`::
+Angular 21 single-page application.
+Renders two feature panels (Relationship, Social Network) that call the MFA proxy.
+In development, `proxy.conf.json` routes all `/actuator/*` and `/v1/*` requests to `http://localhost:8080`.
+In Docker, nginx handles the proxying via `nginx.conf`.
+
+`mfa/`::
+Spring Boot 4 pass-through adapter — a copy of `mfe-adapter` with the `vanilla` Spring profile applied.
+Under the vanilla profile all OAuth2, Kafka, IAS, and session infrastructure is disabled.
+Every incoming HTTP request is forwarded verbatim to the downstream microservice.
+
+`ms/`::
+Spring Boot 4 microservice — a copy of `family-ties`.
+Exposes a REST API for managing family members and their relationships.
+Runs on port 8081 with an in-memory H2 database.
+
+`openapi/`::
+OpenAPI 3 specification files describing the MS REST contract.
+
+== Prerequisites
+
+* Java 21
+* Node.js 22 / npm 11
+* Docker & Docker Compose (for the containerised run)
+
+== Running Locally (without Docker)
+
+=== 1. Start the Microservice
+
+[source,bash]
+----
+cd ms
+export H2_PASSWORD=""
+./gradlew bootRun
+----
+
+The MS starts on `http://localhost:8081`.
+
+=== 2. Start the MFA (vanilla profile)
+
+[source,bash]
+----
+cd mfa
+./gradlew bootRun -Dspring.profiles.active=vanilla
+----
+
+The MFA starts on `http://localhost:8080` and forwards requests to `http://localhost:8081`.
+
+=== 3. Start the MFE (dev server)
+
+[source,bash]
+----
+cd mfe
+npm install
+npm start
+----
+
+The Angular dev server starts on `http://localhost:4200` and proxies API calls to `http://localhost:8080`.
+
+Open `http://localhost:4200` in a browser.
+The health panel will show `UP` when the MS is reachable.
+
+== Running with Docker Compose
+
+[source,bash]
+----
+cd examples/vanilla-mfa
+docker compose up --build
+----
+
+This builds and starts all three services in the correct order:
+
+[cols="1,1,2", options="header"]
+|===
+|Service |Port |Description
+|`ms`    |8081 |Family Ties microservice (H2 in-memory)
+|`mfa`   |8080 |MFA pass-through proxy (vanilla profile)
+|`mfe`   |4200 |Angular SPA served by nginx
+|===
+
+Open `http://localhost:4200` once all health checks pass.
+
+To stop and remove volumes:
+
+[source,bash]
+----
+docker compose down -v
+----
+
+== Running Tests
+
+=== Microservice (100 % JaCoCo line coverage)
+
+[source,bash]
+----
+cd ms
+export H2_PASSWORD=""
+./gradlew check
+----
+
+=== MFA (100 % JaCoCo line coverage)
+
+[source,bash]
+----
+cd mfa
+./gradlew check
+----
+
+=== MFE (Angular unit tests)
+
+[source,bash]
+----
+cd mfe
+npm install
+npm test
+----
+
+== Vanilla Profile — What Is Disabled
+
+Under `spring.profiles.active=vanilla` the following beans are excluded:
+
+* `OidcProviderAdapter` — no OIDC discovery, no JWT validation
+* `AuthorizationServiceAdapter` — no IAS token swap
+* `AuthenticationApplicationService` / `AuthenticationController` — no login/logout endpoints
+* `ReferenceDataEventConsumer` / `KafkaConfiguration` — no Kafka
+* `WebClientConfiguration` — replaced by `VanillaWebClientConfiguration` (plain HTTP `WebClient`)
+* `VanillaSessionStoreAdapter` — session store returns empty; session validation is bypassed by `mfe-adapter.authorization-service.required=false`
+
+== Key Configuration (application-vanilla.yml)
+
+[source,yaml]
+----
+server:
+  port: 8080
+  ssl:
+    enabled: false
+
+mfe-adapter:
+  session:
+    required: false
+    secure: false
+  authorization-service:
+    required: false
+  microservice:
+    base-url: http://localhost:8081   # override with MFE_ADAPTER_MICROSERVICE_BASE_URL in Docker
+    context-path: ""
+  mtls:
+    enabled: false
+----
+
+== Environment Variable Override (Docker)
+
+The `MFE_ADAPTER_MICROSERVICE_BASE_URL` environment variable overrides the `mfe-adapter.microservice.base-url` property.
+In the `docker-compose.yml` this is set to `http://ms:8081` so the MFA resolves the MS by Docker service name.
+
+== Feature Panels
+
+=== Relationship
+
+Calls `GET /actuator/health` to display the MS health status.
+Calls `GET /v1/familyties/relationships/child/lastnames/Smith` to display child relationships for the Smith family.
+
+=== Social Network
+
+Calls `GET /actuator/health` to display the MS health status.
+Calls `GET /v1/familyties/lastnames/Smith` to display family members with the surname Smith.

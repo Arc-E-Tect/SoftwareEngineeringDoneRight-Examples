@@ -1,0 +1,18 @@
+apis:
+  ms-api@v1:
+    root: ms-api.yaml
+  mfa-api@v1:
+    root: mfa-api.yaml
+
+theme:
+  openapi:
+    generateCodeSamples:
+      languages:
+        - lang: curl
+        - lang: JavaScript
+        - lang: Java
+
+rules:
+  no-unused-components: warn
+  operation-operationId: warn
+  operation-summary: warn

@@ -59,3 +59,4 @@ node_modules/
 
 # Generated docs output
 mfe-adapter/docs/output/
+tmp/

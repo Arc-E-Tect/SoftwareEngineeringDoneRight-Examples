@@ -1,0 +1,16 @@
+{
+  "priority": 1,
+  "name": "Grandparent limit reached",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/familyties/relationships",
+    "bodyPatterns": [
+      { "matchesJsonPath": "$[?(@.fromFirstName == 'William' && @.fromLastName == 'Smith' && @.toFirstName == 'Olivia' && @.toLastName == 'Smith' && @.type == 'grandparent')]" }
+    ]
+  },
+  "response": {
+    "status": 409,
+    "body": "A person can have at most four grandparents",
+    "headers": { "Content-Type": "text/plain" }
+  }
+}

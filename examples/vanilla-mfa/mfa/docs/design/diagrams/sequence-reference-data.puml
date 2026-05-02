@@ -1,0 +1,32 @@
+@startuml sequence-reference-data
+skinparam sequenceArrowThickness 1.5
+skinparam roundcorner 8
+skinparam backgroundColor white
+
+title Reference-Data Cache Update — MFA Template
+
+participant "Reference Data MS" as RefMS
+participant "Kafka\n(reference-data.*)" as Kafka
+participant "ReferenceDataEventConsumer" as Consumer
+participant "ReferenceDataApplicationService" as AppSvc
+participant "ReferenceDataStoreAdapter\n(H2)" as Store
+
+RefMS -> Kafka : produce ReferenceDataEvent\n{ eventType, dataType, code, name, attributes }
+Kafka --> Consumer : deliver message\n(topic-pattern match: reference-data\\.*)
+
+Consumer -> Consumer : deserialize ReferenceDataEvent JSON
+Consumer -> Consumer : map event → ReferenceDataEntry
+Consumer -> AppSvc : process(eventType, entry)
+
+alt eventType = CREATE or UPDATE
+    AppSvc -> Store : upsert(entry)
+    Store -> Store : JPA save (insert or update)\n[data_type + code = PK]
+else eventType = DELETE
+    AppSvc -> Store : delete(dataType, code)
+    Store -> Store : JPA deleteById
+else unknown eventType
+    AppSvc -> AppSvc : log warn, ignore
+end
+
+Consumer -> Kafka : commit offset
+@enduml

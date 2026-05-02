@@ -1,0 +1,344 @@
+= MFE Adapter — Architecture Design Document
+:doctype: book
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: rouge
+:imagesdir: diagrams
+:plantuml-server: https://www.plantuml.com/plantuml
+
+== Introduction
+
+The *MFE Adapter* is a lightweight, UI-facing component that sits between a Micro-Frontend (MFE) and its corresponding Microservice (MS).
+Each MFE has exactly one dedicated MFE Adapter, and each adapter communicates with exactly one MS.
+Collectively, these adapters form the *Frontend Anti-Corruption Layer (ACL)*.
+Its purpose is to translate, validate, and stabilise the API contract between the frontend and backend without introducing domain logic or cross-service orchestration.
+
+This document describes the architecture of the MFE Adapter in detail.
+It is intended for software architects and senior engineers who need to understand the design decisions, component responsibilities, and integration patterns used by the MFE Adapter.
+The implementation is a reusable Spring Boot 4 project scaffold that teams can clone and customise to stand up a production-ready MFE Adapter service within a micro-frontend architecture.
+
+=== Design Rationale
+
+Although the MFE Adapter sits between a frontend and a backend, it does *not* match the classical definition of a Backend-for-Frontend (BFF).
+A traditional BFF typically:
+
+* Aggregates data from multiple backend services.
+* Constructs complex view models.
+* Applies frontend-specific business logic.
+* Acts as a mini-backend tailored to a UI domain.
+
+The MFE Adapter intentionally avoids these responsibilities.
+It communicates with exactly one MS, performs no domain logic, avoids cross-service orchestration, and limits itself to boundary concerns such as authentication, feature flags, and light contract shaping.
+This keeps the component thin, predictable, and easy to reason about.
+
+The behaviour of the component aligns precisely with the *Adapter Pattern*:
+
+* It translates between two interfaces (MFE API ↔ MS API).
+* It decouples the consumer from the provider.
+* It protects the MFE from backend churn.
+* It stabilises the contract without owning business logic.
+
+Using the term *MFE Adapter* makes the architectural intent explicit and avoids the conceptual overload associated with the term "BFF."
+
+== Responsibilities
+
+The MFE Adapter owns the boundary between the MFE and the MS.
+Its responsibilities are intentionally narrow and focused.
+
+=== Session Boundary
+
+* Validate the session cookie provided by the MFE.
+* Exchange the session cookie for the user token required by the MS.
+
+=== Security Boundary
+
+* Enforce authentication and authorisation before delegating to the MS.
+* Ensure that backend-facing tokens are never exposed to the MFE.
+
+=== Feature Boundary
+
+* Optionally evaluate feature flags.
+* Prevent feature-flag logic from leaking into the MFE or MS.
+
+=== Contract Boundary
+
+* Perform light request/response shaping (renaming fields, flattening structures, hiding backend details).
+* Decouple the MFE from backend API evolution.
+* Maintain a stable API contract for the MFE.
+
+=== Pass-Through Delegation
+
+* Forward validated and translated requests to the MS.
+* Avoid domain logic, workflow orchestration, or multi-service aggregation.
+
+== System Context
+
+The MFE Adapter sits between an Angular Micro-Frontend (MFE) and a set of backend Microservices (MS).
+Traffic from the MFE is always routed through an API Gateway (AG) first.
+The AG performs edge-level concerns such as rate limiting, TLS termination, and API-key validation before forwarding requests to the MFE Adapter.
+The MFE Adapter is never exposed to the public internet; only the AG can reach it over a private network.
+
+.System participants
+[cols="1,3"]
+|===
+| Component | Responsibility
+
+| Angular MFE
+| Single-page application serving the end user.
+  Communicates with the AG over HTTPS.
+
+| API Gateway
+| Edge proxy.
+  Validates API keys, enforces rate limits, and forwards requests to the MFE Adapter with the header `X-API-Key-Validated: true`.
+
+| MFE Adapter
+| Session management, user-token / inner-token swap, request routing to the target MS.
+  Implemented by this template.
+
+| Microservice (MS)
+| Domain business logic exposed via a REST API.
+  Protected by mTLS and inner-token authorization.
+
+| OIDC Provider
+| Identity Provider (IdP).
+  Issues OIDC `access_token` after the OAuth2 Authorization Code flow.
+
+| Authorization Service
+| Swaps an OIDC user token for a short-lived inner token enriched with RBAC and ABAC claims.
+
+| Reference Data MS
+| Publishes reference-data change events to Kafka topics.
+|===
+
+For a visual representation, see <<fig-c4-context>>.
+
+[[fig-c4-context]]
+.C4 Context diagram
+plantuml::design/diagrams/c4-context.puml[format=svg,opts=inline]
+
+== System Containers
+
+The container diagram zooms into the MFE Adapter service boundary and shows the runtime processes and data stores.
+
+The MFE Adapter service boundary contains two containers:
+
+* *MFE Adapter Spring Boot App* — the main Java 21 process.
+  It handles session management, OAuth2 / OIDC flows, inner-token exchange, SPI-based request customisation, and MS proxying.
+  It also consumes Kafka events to maintain the reference-data cache.
+* *H2 In-Memory DB* — the embedded relational database used in development and as the default in production.
+  It stores active sessions and the reference-data cache.
+  In production environments with multiple replicas, H2 must be replaced by a shared store such as Redis or a managed relational database; see the link:deployment-guide.adoc[Deployment Guide].
+
+All inbound traffic arrives from the AG over mutual TLS (mTLS).
+All outbound calls to the MS and the Authorization Service also use mTLS.
+The OIDC Provider is reached over standard HTTPS.
+
+[[fig-c4-container]]
+.C4 Container diagram
+plantuml::design/diagrams/c4-container.puml[format=svg,opts=inline]
+
+== Architecture Style
+
+The MFE Adapter implements the *Hexagonal Architecture* (also known as Ports & Adapters) pattern.
+This style was chosen because it makes the MFE Adapter easy to test, adapt, and extend without changing business logic.
+The domain and application layers are completely free of framework-specific annotations and are therefore portable and independently testable.
+
+=== Layer Responsibilities
+
+==== Domain Layer
+
+The domain layer contains the core business concepts of the MFE Adapter.
+It defines domain models (pure Java records and value objects) and port interfaces (inbound and outbound).
+The domain layer must not depend on any infrastructure framework.
+
+.Domain models
+* `Session` — represents an authenticated MFE Adapter session tied to an OIDC user token.
+* `UserToken` — wraps the raw OIDC `access_token` with its expiry and subject.
+* `InnerToken` — the Authorization Service-issued inner token carrying RBAC/ABAC claims.
+* `ReferenceDataEntry` — a single cached code-table value from the Reference Data MS.
+* `ProxiedRequest` / `ProxiedResponse` — transport-agnostic wrappers for HTTP request/response data forwarded to the MS.
+* `ValidationResult` — carries the outcome of SPI-based request validation.
+
+.Inbound ports (use cases)
+* `HandleRequestUseCase` — entry point for every proxied API call from the MFE.
+* `AuthenticateUserUseCase` — manages OAuth2 login, callback handling, and logout.
+* `ProcessReferenceDataEventUseCase` — handles Kafka reference-data change events.
+
+.Outbound ports
+* `SessionStorePort` — persist and retrieve sessions.
+* `InnerTokenServicePort` — delegate inner-token acquisition to the Authorization Service.
+* `IdentityProviderPort` — delegate OAuth2 operations to the OIDC Provider.
+* `MicroserviceClientPort` — forward HTTP requests to the target MS.
+* `ReferenceDataStorePort` — read and write the reference-data cache.
+
+==== SPI (Extension Points)
+
+The MFE Adapter exposes five Strategy interfaces that individual MFE Adapter instances can implement to customise behaviour.
+
+.Request / response pipeline
+* `RequestValidator` — veto a proxied request based on payload content or business rules.
+* `RequestTransformer` — rewrite the proxied request before it is forwarded to the MS.
+* `ResponseTransformer` — rewrite the MS response before it is returned to the MFE.
+
+.Version extraction
+* `VersionExtractionStrategy` — extract the API version from an inbound request.
+Two ready-made implementations are provided: `PathVersionExtractionStrategy` (parses `/v{n}/` path prefix) and `HeaderVersionExtractionStrategy` (reads a configurable header).
+The extracted version is stored in `ProxiedRequest.getVersion()`.
+
+.Routing
+* `RoutingStrategy` — resolve the forwarding path for a proxied request.
+Three ready-made implementations are provided: `PassThroughRoutingStrategy` (default, path unchanged), `PrefixStrippingRoutingStrategy` (strips the context-path prefix), and `PathMappingRoutingStrategy` (translates path prefixes via a mapping table).
+
+All SPI implementations are discovered automatically via Spring dependency injection.
+A team creates a `@Component` class that implements the relevant interface and registers it as a Spring bean; no modifications to the template code are required.
+
+==== Application Layer
+
+The application layer orchestrates domain ports to implement use cases.
+It contains no domain model logic and no framework code.
+
+.Application services
+* `MfeAdapterRequestApplicationService` — coordinates the full lifecycle of a proxied request: session lookup → inner-token swap → SPI validation → SPI request transformation → MS forwarding → SPI response transformation.
+* `AuthenticationApplicationService` — handles the OAuth2 code exchange, session creation with TTL, and logout with token revocation.
+* `ReferenceDataApplicationService` — routes Kafka events to the reference-data store via CREATE / UPDATE / DELETE semantics.
+
+==== Infrastructure Layer
+
+The infrastructure layer contains all framework-specific code.
+It adapts the domain ports to concrete technologies.
+
+.Inbound adapters
+* Spring MVC controllers (`MfeAdapterProxyController`, `AuthenticationController`) translate HTTP to domain use-case calls.
+* `ApiKeyValidationFilter` delegates to an optional `ApiKeyValidator` bean; if no bean is declared the filter is a no-op.
+`StandardApiKeyValidator` is a ready-made implementation that enforces the AG API-key handshake.
+* `ReferenceDataEventConsumer` bridges Spring Kafka to the `ProcessReferenceDataEventUseCase`.
+
+.Outbound adapters
+* `SessionStoreAdapter` / `ReferenceDataStoreAdapter` implement the corresponding ports using H2 via Spring Data JPA.
+* `MicroserviceRestClientAdapter` implements `MicroserviceClientPort` using a mTLS-enabled `WebClient`.
+* `OidcProviderAdapter` implements `IdentityProviderPort` using the OIDC Provider's endpoints.
+* `AuthorizationServiceAdapter` implements `InnerTokenServicePort` by calling the Authorization Service token-swap endpoint.
+
+.Configuration
+* `MfeAdapterProperties` — type-safe `@ConfigurationProperties` aggregating all `mfe-adapter.*` YAML properties.
+* `SecurityConfiguration` — Spring Security filter chain (stateless, API-key filter before authentication).
+* `KafkaConfiguration` — consumer factory for pattern-based topic subscription.
+* `WebClientConfiguration` — three mTLS-capable `WebClient` beans (MS, Authorization Service, OIDC Provider).
+
+For a detailed component view, see <<fig-c4-component>>.
+
+[[fig-c4-component]]
+.C4 Component diagram — MFE Adapter internals
+plantuml::design/diagrams/c4-component.puml[format=svg,opts=inline]
+
+== Security Design
+
+=== Zero-Trust Principle
+
+The MFE Adapter operates under a Zero-Trust model: every request is authenticated and authorized, regardless of its network origin.
+No implicit trust is granted based on IP address or network segment.
+
+=== API-Key Handshake
+
+The MFE Adapter does not enforce API-key validation by default.
+Validation is activated by declaring an `ApiKeyValidator` bean in the application context.
+
+The provided `StandardApiKeyValidator` implements the AG handshake: the AG validates the API key at the edge and signals its outcome via a configurable request header (`X-API-Key-Validated: true` by default).
+The validator rejects any request that arrives without this header, returning HTTP 403, preventing MFE Adapter endpoints from being called directly by any actor other than the AG.
+
+When validation succeeds, `StandardApiKeyValidator` also reads an optional scope header (`X-API-Key-Scope` by default) and maps it to an `ApiKeyScope` enum value (`READ`, `WRITE`, or `AUDIT`).
+The resolved scope is stored as request attribute `mfa.api-key-scope` and carried in `ProxiedRequest.getApiKeyScope()`.
+When `mfe-adapter.api-gateway.forward-scope=true` (the default), the MFA forwards the scope to the microservice under the configured scope header.
+
+A custom `ApiKeyValidator` implementation can replace or extend this behaviour without modifying any template code.
+
+=== Session Management
+
+After a successful OAuth2 login, the MFE Adapter creates a `Session` domain object containing the OIDC user token.
+The session is stored in H2 (or a distributed cache in production) and a short, random, opaque session identifier is issued to the MFE as an `HttpOnly`, `Secure`, `SameSite=Strict` cookie.
+The cookie never carries the actual token, which remains server-side only.
+
+=== Inner Token
+
+For each proxied request the MFE Adapter calls the Authorization Service to swap the OIDC user token for a short-lived inner token.
+The inner token carries RBAC and ABAC claims that the MS uses for fine-grained authorization.
+The inner token is never stored; it is acquired per-request and attached to the outbound MS call as a `Bearer` token.
+
+The IAS call is conditional on `mfe-adapter.authorization-service.required` (default `true`).
+Setting it to `false` puts the MFA into pure session-authenticated proxy mode: the IAS token-swap step is skipped and no `Authorization` header is added to the forwarded request.
+This is useful during development or when the downstream service does not require inner-token validation.
+
+=== mTLS
+
+All TLS-terminated traffic between AG ↔ MFE Adapter and MFE Adapter ↔ MS uses mutual TLS (mTLS).
+The MFE Adapter presents its client certificate to the MS, and the MS verifies it against a trusted CA.
+mTLS is *disabled by default* (`mfe-adapter.mtls.enabled=false`; `server.ssl.client-auth=none`).
+Enable it for production by setting `mfe-adapter.mtls.enabled=true` and supplying the keystore and truststore paths.
+
+For a sequence view of the authentication flow, see <<fig-seq-auth>>.
+
+[[fig-seq-auth]]
+.Authentication sequence
+plantuml::design/diagrams/sequence-authentication.puml[format=svg,opts=inline]
+
+=== Simple Request Forwarding
+
+When the consuming team registers no SPI beans, the MFE Adapter applies the minimal pipeline: API-key check → session resolution → Authorization Service token swap → MS forwarding.
+This is the default behaviour and requires no custom code.
+
+[[fig-seq-simple]]
+.Simple forwarding sequence (no SPI customisation)
+plantuml::design/diagrams/sequence-simple-forwarding.puml[format=svg,opts=inline]
+
+=== Customised Request Proxying
+
+When one or more SPI beans are registered, `MfeAdapterRequestApplicationService` extends the pipeline to invoke each `RequestValidator` in turn, then each `RequestTransformer` on the outbound request, and finally each `ResponseTransformer` before returning the response to the MFE.
+
+[[fig-seq-proxy]]
+.Customised request-proxy sequence (with SPI implementations)
+plantuml::design/diagrams/sequence-request-proxy.puml[format=svg,opts=inline]
+
+== Reference-Data Cache
+
+The MFE Adapter maintains an in-memory reference-data cache backed by H2.
+Changes in the Reference Data MS are propagated via Kafka.
+`ReferenceDataEventConsumer` subscribes to a configurable topic-pattern regex and calls `ReferenceDataApplicationService` with the event type (`CREATE`, `UPDATE`, `DELETE`) and the changed entry.
+The cache enables the SPI validators and transformers to enrich or validate requests with reference data without a synchronous call to the Reference Data MS on every request.
+
+For the event sequence, see <<fig-seq-refdata>>.
+
+[[fig-seq-refdata]]
+.Reference-data cache update sequence
+plantuml::design/diagrams/sequence-reference-data.puml[format=svg,opts=inline]
+
+== Deployment Overview
+
+=== Runtime Requirements
+
+The MFE Adapter requires:
+
+* JDK 21 or later.
+* Kafka cluster accessible at the configured bootstrap servers.
+* OIDC Provider configured with an OIDC client.
+* Authorization Service endpoint reachable from the MFE Adapter pod/container.
+* PKI certificates for mTLS (AG ↔ MFE Adapter and MFE Adapter ↔ MS chains).
+
+=== Profiles
+
+[cols="1,3"]
+|===
+| Profile | Purpose
+
+| (default)
+| Production-grade defaults: mTLS disabled by default (enable via `mfe-adapter.mtls.enabled=true`), H2 in-memory, server port 8443, SSL on.
+
+| `local`
+| Developer machine: mTLS disabled, plain HTTP port 8080, H2 console enabled.
+
+| `test`
+| JUnit / Spring Test: random port, mTLS disabled, H2 in-memory, embedded Kafka.
+|===
+
+See the link:deployment-guide.adoc[Deployment Guide] for full environment-variable and Kubernetes configuration.
