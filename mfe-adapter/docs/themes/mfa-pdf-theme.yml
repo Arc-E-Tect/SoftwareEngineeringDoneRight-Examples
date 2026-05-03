@@ -1,0 +1,89 @@
+# Micro-Frontend Adapter (MFA) PDF Theme
+# Asciidoctor PDF Theme (YAML)
+
+extends: default
+
+font:
+  catalog:
+    merge: true
+    Noto Sans:
+      normal: GEM_FONTS_DIR/notosans-regular-subset.ttf
+      bold: GEM_FONTS_DIR/notosans-bold-subset.ttf
+      italic: GEM_FONTS_DIR/notosans-italic-subset.ttf
+      bold_italic: GEM_FONTS_DIR/notosans-bold_italic-subset.ttf
+
+page:
+  margin: [36, 48, 36, 48]
+  size: A4
+
+base:
+  font-family: Noto Sans
+  font-size: 11
+  line-height: 1.4
+
+heading:
+  font-family: Noto Sans
+  font-style: bold
+  line-height: 1.2
+  h1-font-size: 26
+  h2-font-size: 20
+  h3-font-size: 16
+  h4-font-size: 14
+
+title-page:
+  align: center
+  title:
+    font-size: 32
+    font-style: bold
+    margin-bottom: 12
+  subtitle:
+    font-size: 18
+    font-style: italic
+    margin-bottom: 12
+  authors:
+    font-size: 14
+    margin-top: 20
+    margin-bottom: 8
+  revision:
+    font-size: 12
+    font-style: italic
+    margin-top: 8
+
+table:
+  border-color: "#666666"
+  head:
+    background-color: "#eeeeee"
+    font-style: bold
+
+code:
+  font-family: M+ 1mn
+  font-size: 10
+  background-color: "#f7f7f7"
+  border-radius: 4
+
+codespan:
+  background-color: "#f7f7f7"
+
+footer:
+  font-size: 9
+  font-style: italic
+  border-width: 0.5
+  border-color: "#cccccc"
+  padding: [4, 0, 0, 0]
+  height: 20
+  line-height: 1
+  recto:
+    center:
+      content: 'Version {revnumber}, {revdate}: {revremark}'
+  verso:
+    center:
+      content: 'Version {revnumber}, {revdate}: {revremark}'
+
+admonition:
+  icon:
+    tip:
+      name: fa-lightbulb
+    note:
+      name: fa-info-circle
+    warning:
+      name: fa-exclamation-triangle

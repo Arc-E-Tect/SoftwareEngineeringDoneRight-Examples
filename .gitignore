@@ -59,4 +59,5 @@ node_modules/
 
 # Generated docs output
 mfe-adapter/docs/output/
-tmp/
+/mfe-adapter/docs/whitepaper-micro-frontend-adapter.adoc
+/tmp/

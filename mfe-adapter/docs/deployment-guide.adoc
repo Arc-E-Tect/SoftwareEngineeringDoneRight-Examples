@@ -1,0 +1,471 @@
+= MFE Adapter — Deployment Guide
+:doctype: book
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: rouge
+
+== Overview
+
+This guide explains how to configure and deploy a MFE Adapter instance built from the MFE Adapter.
+It covers local development, containerisation, and Kubernetes deployment.
+All sensitive values (passwords, secrets) must be supplied via environment variables or a secrets manager — never hard-coded in configuration files.
+
+[[local-docker-compose]]
+== Local Development with Docker Compose
+
+A `docker-compose.yml` is provided at the repository root.
+It starts the <<oidc-provider,OIDC Provider>> and a single-node Kafka cluster.
+The MFE Adapter itself runs locally outside Docker using the `local` Spring profile.
+
+Start the dependency stack:
+
+[source,bash]
+----
+# From the repository root
+docker compose up -d
+----
+
+Wait for the stub to become healthy (the health check polls `/actuator/health`):
+
+[source,bash]
+----
+docker compose ps
+----
+
+Then start the MFE Adapter (see <<developer-guide.adoc#,Developer Guide>>):
+
+[source,bash]
+----
+cd mfe-adapter
+./gradlew bootRun --args='--spring.profiles.active=local'
+----
+
+== Environment Variables
+
+Every sensitive configuration value must be supplied as an environment variable.
+The following table lists all required and optional variables.
+
+[cols="2,1,3"]
+|===
+| Variable | Required | Description
+
+| `MFE_ADAPTER_OIDC_PROVIDER_ISSUER_URI`
+| Yes
+| OIDC issuer URI.
+  For local development with the OIDC Provider: `http://localhost:8090`.
+  For production: `https://idp.example.com`.
+
+| `MFE_ADAPTER_OIDC_PROVIDER_REALM`
+| Yes
+| Realm name (provider-specific; leave blank if your OIDC provider does not use realms).
+  Not used by the local OIDC Provider but required by the MFE Adapter configuration binding.
+
+| `MFE_ADAPTER_OIDC_PROVIDER_CLIENT_ID`
+| Yes
+| OAuth2 client ID.
+  For local development: `mfe-adapter-client` (matches the Compose default).
+
+| `MFE_ADAPTER_OIDC_PROVIDER_CLIENT_SECRET`
+| Yes
+| OAuth2 client secret.
+  For local development: `mfe-adapter-secret` (matches the Compose default).
+  Retrieve from your OIDC Provider's client credentials in production.
+
+| `MFE_ADAPTER_AUTHZ_BASE_URL`
+| Yes
+| Base URL of the Authorization Service.
+  Example: `https://authz.internal.example.com`.
+
+| `MFE_ADAPTER_MS_BASE_URL`
+| Yes
+| Base URL of the target microservice.
+  Example: `https://customer-ms.internal.example.com`.
+
+| `MFE_ADAPTER_KEYSTORE_PASSWORD`
+| Yes (mTLS)
+| Password for the PKCS#12 keystore used in mTLS connections.
+
+| `MFE_ADAPTER_TRUSTSTORE_PASSWORD`
+| Yes (mTLS)
+| Password for the PKCS#12 truststore used in mTLS connections.
+
+| `KAFKA_BOOTSTRAP_SERVERS`
+| Yes
+| Comma-separated list of Kafka broker addresses.
+  Example: `kafka-broker-1:9092,kafka-broker-2:9092`.
+
+| `MFE_ADAPTER_KAFKA_CONSUMER_GROUP_ID`
+| No
+| Kafka consumer group ID.
+  Defaults to `mfe-adapter-reference-data`.
+  Use a unique value per MFE Adapter instance to avoid partition assignment conflicts.
+|===
+
+== mTLS Certificate Setup
+
+The MFE Adapter uses PKCS#12 keystores for mTLS.
+A dedicated PKI should issue certificates for the AG→MFE Adapter and MFE Adapter→MS trust chains.
+
+=== Generate a Self-Signed Certificate (Non-Production)
+
+[source,bash]
+----
+# Generate CA key and certificate
+openssl req -x509 -newkey rsa:4096 -keyout ca.key -out ca.crt \
+  -days 3650 -nodes -subj "/CN=MFE-Adapter-CA"
+
+# Generate MFE Adapter key and CSR
+openssl req -newkey rsa:4096 -keyout mfe-adapter.key -out mfe-adapter.csr \
+  -nodes -subj "/CN=mfe-adapter.internal.example.com"
+
+# Sign the MFE Adapter certificate with the CA
+openssl x509 -req -in mfe-adapter.csr -CA ca.crt -CAkey ca.key \
+  -CAcreateserial -out mfe-adapter.crt -days 365
+
+# Bundle into PKCS#12 keystore
+openssl pkcs12 -export -in mfe-adapter.crt -inkey mfe-adapter.key \
+  -certfile ca.crt -name mfe-adapter \
+  -out keystore.p12 -passout pass:changeit
+
+# Create truststore containing the CA certificate
+keytool -import -trustcacerts -alias mfe-adapter-ca \
+  -file ca.crt -keystore truststore.p12 \
+  -storetype PKCS12 -storepass changeit -noprompt
+----
+
+Place `keystore.p12` and `truststore.p12` under `src/main/resources/ssl/`.
+Reference them in `application.yml`:
+
+[source,yaml]
+----
+mfe-adapter:
+  mtls:
+    key-store: classpath:ssl/keystore.p12
+    trust-store: classpath:ssl/truststore.p12
+----
+
+In production, mount the keystores from a Kubernetes `Secret` or a vault and reference them via file-system paths (e.g. `file:/mnt/certs/keystore.p12`).
+
+[[oidc-provider]]
+== OIDC Provider (Local / Test Environments)
+
+The repository includes a lightweight Spring Boot service (`oidc-provider/`) that
+replaces a full identity provider for local development and integration testing.
+It implements exactly the OIDC endpoints consumed by the MFE Adapter:
+
+[cols="1,2"]
+|===
+| Endpoint | Purpose
+
+| `GET /.well-known/openid-configuration`
+| OIDC discovery document — auto-configured by Spring Security at MFE Adapter startup.
+
+| `GET /protocol/openid-connect/auth`
+| Authorization endpoint — renders a minimal login form.
+
+| `POST /protocol/openid-connect/auth`
+| Login form submission — validates credentials, issues an authorization code, and
+  redirects the browser to the MFE Adapter callback URL.
+
+| `POST /protocol/openid-connect/token`
+| Token endpoint — exchanges the authorization code for a signed RS256 JWT.
+
+| `POST /protocol/openid-connect/revoke`
+| Revocation endpoint — acknowledges logout per RFC 7009.
+
+| `GET /protocol/openid-connect/certs`
+| JWKS endpoint — exposes the RSA-2048 public key for JWT verification.
+|===
+
+The complete OpenAPI 3.2 contract for both development services is at `api/openapi.yaml`.
+
+=== Configuration
+
+Clients and users are configured through environment variables (or `application.yml`).
+The `docker-compose.yml` at the repository root pre-configures the defaults shown below.
+
+[cols="2,1,2"]
+|===
+| Environment Variable | Default | Description
+
+| `OIDC_PROVIDER_ISSUER_URI`
+| `http://localhost:8090`
+| Base URL used as the OIDC issuer and in all discovery document URLs.
+  Must match `MFE_ADAPTER_OIDC_PROVIDER_ISSUER_URI` in the MFE Adapter configuration.
+
+| `OIDC_PROVIDER_TOKEN_EXPIRY_SECONDS`
+| `300`
+| Lifetime of issued access tokens in seconds.
+
+| `OIDC_PROVIDER_CLIENT_ID`
+| `mfe-adapter-client`
+| OAuth2 client ID.
+  Must match `MFE_ADAPTER_OIDC_PROVIDER_CLIENT_ID`.
+
+| `OIDC_PROVIDER_CLIENT_SECRET`
+| `mfe-adapter-secret`
+| OAuth2 client secret.
+  Must match `MFE_ADAPTER_OIDC_PROVIDER_CLIENT_SECRET`.
+
+| `OIDC_PROVIDER_REDIRECT_URI`
+| `http://localhost:8080/auth/callback`
+| Allowed redirect URI for the client.
+  Must match the MFE Adapter's `redirect-uri` Spring Security registration.
+
+| `OIDC_PROVIDER_USER_USERNAME`
+| `test-user`
+| Username for the built-in test account.
+
+| `OIDC_PROVIDER_USER_PASSWORD`
+| `test-password`
+| Password for the built-in test account.
+
+| `OIDC_PROVIDER_USER_SUB`
+| `11111111-…-111111111111`
+| Value placed in the JWT `sub` claim for the test user.
+|===
+
+[WARNING]
+====
+The OIDC Provider is intended for local development and automated integration tests only.
+It stores credentials in plaintext, issues ephemeral RSA keys, and provides no PKCE,
+session management, or production hardening.
+Do not deploy it to production or any shared environment.
+====
+
+=== MFE Adapter Environment Variables for Local Development
+
+When the MFE Adapter runs against the OIDC Provider started via Docker Compose, set:
+
+[source,yaml]
+----
+# In mfe-adapter/src/main/resources/application-local.yml
+mfe-adapter:
+  oidc-provider:
+    issuer-uri: http://localhost:8090
+    realm:       local-dev
+    client-id:   mfe-adapter-client
+    client-secret: mfe-adapter-secret
+
+spring:
+  security:
+    oauth2:
+      client:
+        provider:
+          oidc-provider:
+            issuer-uri: http://localhost:8090
+----
+
+== OIDC Provider Configuration (Production)
+
+The MFE Adapter is OIDC-agnostic and works with any standards-compliant identity provider (e.g. Keycloak, Auth0, Azure AD, Okta).
+The following steps are generic; refer to your chosen provider's documentation for the exact UI or API.
+
+=== Create a Realm or Tenant
+
+. Open the identity provider's administration console.
+. Create a new realm, tenant, or application namespace (e.g., `my-product`).
+
+=== Register a Confidential Client
+
+. Register a new OAuth2 client with a client ID that matches `mfe-adapter.oidc-provider.client-id`.
+. Configure the following:
+  * *Client type*: confidential (requires a client secret).
+  * *Valid redirect URIs*: `https://<mfe-adapter-host>/auth/callback`.
+  * *Web origins*: `https://<mfe-host>`.
+. Copy the generated client secret and store it as `MFE_ADAPTER_OIDC_PROVIDER_CLIENT_SECRET`.
+
+=== Configure Token Lifetimes
+
+Set the `access_token` lifetime in the realm or application settings to match or exceed the MFE Adapter session TTL configured in `mfe-adapter.session.ttl-minutes`.
+
+== Kafka Topic Configuration
+
+The MFE Adapter subscribes to topics matching the regex defined in `mfe-adapter.kafka.reference-data.topic-pattern`.
+The default pattern `reference-data\\..*` matches any topic prefixed with `reference-data.`.
+Examples of matching topic names:
+
+* `reference-data.country-codes`
+* `reference-data.currencies`
+* `reference-data.product-categories`
+
+Create topics with a replication factor of at least 3 in production clusters.
+Example using the Kafka CLI:
+
+[source,bash]
+----
+kafka-topics.sh --bootstrap-server kafka:9092 --create \
+  --topic reference-data.country-codes \
+  --partitions 3 --replication-factor 3
+----
+
+== Production Cache Considerations
+
+The default configuration uses H2 in-memory for both the session store and reference-data cache.
+H2 is not suitable for production deployments because:
+
+* Data is lost on pod restart.
+* It cannot be shared across multiple MFE Adapter pod replicas.
+
+=== Replacing H2 with Redis
+
+Implement `SessionStorePort` and `ReferenceDataStorePort` using `spring-data-redis`.
+Register the beans as `@Primary` to override the H2-backed adapters provided by the template.
+No changes to the application or domain layers are needed.
+
+=== Replacing H2 with a Relational Database
+
+Point `spring.datasource.url` to a PostgreSQL or Azure SQL connection string.
+Update `spring.jpa.hibernate.ddl-auto` to `validate` and apply the DDL schema in a migration tool such as Flyway or Liquibase.
+
+== Containerisation
+
+=== Dockerfile
+
+[source,dockerfile]
+----
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY build/libs/mfe-adapter-*.jar app.jar
+EXPOSE 8443
+ENTRYPOINT ["java", "-jar", "app.jar"]
+----
+
+Build the image:
+
+[source,bash]
+----
+./gradlew bootJar
+docker build -t my-mfe-adapter:latest .
+----
+
+=== Running the Container
+
+[source,bash]
+----
+docker run -p 8443:8443 \
+  -e MFE_ADAPTER_OIDC_PROVIDER_ISSUER_URI=https://idp.example.com \
+  -e MFE_ADAPTER_OIDC_PROVIDER_REALM=my-realm \
+  -e MFE_ADAPTER_OIDC_PROVIDER_CLIENT_ID=my-mfe-adapter \
+  -e MFE_ADAPTER_OIDC_PROVIDER_CLIENT_SECRET=<secret> \
+  -e MFE_ADAPTER_AUTHZ_BASE_URL=https://authz.internal.example.com \
+  -e MFE_ADAPTER_MS_BASE_URL=https://customer-ms.internal.example.com \
+  -e MFE_ADAPTER_KEYSTORE_PASSWORD=<password> \
+  -e MFE_ADAPTER_TRUSTSTORE_PASSWORD=<password> \
+  -e KAFKA_BOOTSTRAP_SERVERS=kafka:9092 \
+  -v /path/to/certs:/mnt/certs \
+  my-mfe-adapter:latest
+----
+
+== Kubernetes Deployment
+
+=== Secret
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mfe-adapter-secrets
+  namespace: my-namespace
+type: Opaque
+stringData:
+  MFE_ADAPTER_OIDC_PROVIDER_CLIENT_SECRET: "<secret>"
+  MFE_ADAPTER_KEYSTORE_PASSWORD: "<password>"
+  MFE_ADAPTER_TRUSTSTORE_PASSWORD: "<password>"
+----
+
+=== Deployment
+
+[source,yaml]
+----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-mfe-adapter
+  namespace: my-namespace
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-mfe-adapter
+  template:
+    metadata:
+      labels:
+        app: my-mfe-adapter
+    spec:
+      containers:
+        - name: my-mfe-adapter
+          image: my-registry/my-mfe-adapter:latest
+          ports:
+            - containerPort: 8443
+          envFrom:
+            - secretRef:
+                name: mfe-adapter-secrets
+          env:
+            - name: MFE_ADAPTER_OIDC_PROVIDER_ISSUER_URI
+              value: "https://idp.example.com"
+            - name: MFE_ADAPTER_OIDC_PROVIDER_REALM
+              value: "my-realm"
+            - name: MFE_ADAPTER_OIDC_PROVIDER_CLIENT_ID
+              value: "my-mfe-adapter"
+            - name: MFE_ADAPTER_AUTHZ_BASE_URL
+              value: "https://authz.internal.example.com"
+            - name: MFE_ADAPTER_MS_BASE_URL
+              value: "https://customer-ms.internal.example.com"
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka:9092"
+          volumeMounts:
+            - name: certs
+              mountPath: /mnt/certs
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8443
+              scheme: HTTPS
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: certs
+          secret:
+            secretName: mfe-adapter-tls-certs
+----
+
+=== Service
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-mfe-adapter
+  namespace: my-namespace
+spec:
+  selector:
+    app: my-mfe-adapter
+  ports:
+    - port: 443
+      targetPort: 8443
+  type: ClusterIP
+----
+
+The MFE Adapter `Service` should only be reachable from within the cluster (type `ClusterIP`) because the API Gateway is the only legitimate caller.
+
+== Health Checks
+
+The following actuator endpoints are exposed without authentication:
+
+* `GET /actuator/health` — overall health status.
+* `GET /actuator/info` — build metadata.
+
+Use these endpoints for Kubernetes liveness and readiness probes as shown in the deployment manifest above.
