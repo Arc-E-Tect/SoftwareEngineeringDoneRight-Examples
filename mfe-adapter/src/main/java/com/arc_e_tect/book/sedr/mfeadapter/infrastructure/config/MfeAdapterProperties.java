@@ -71,6 +71,8 @@ public class MfeAdapterProperties {
         private boolean secure = true;
         /** SameSite attribute value for the session cookie. */
         private String sameSite = "Strict";
+        /** Whether a valid session cookie is required for every proxied request. */
+        private boolean required = true;
 
         public String getCookieName() { return cookieName; }
         public void setCookieName(String cookieName) { this.cookieName = cookieName; }
@@ -82,6 +84,8 @@ public class MfeAdapterProperties {
         public void setSecure(boolean secure) { this.secure = secure; }
         public String getSameSite() { return sameSite; }
         public void setSameSite(String sameSite) { this.sameSite = sameSite; }
+        public boolean isRequired() { return required; }
+        public void setRequired(boolean required) { this.required = required; }
     }
 
     public static class ApiGateway {
