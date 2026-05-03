@@ -55,6 +55,8 @@ Dependencies are managed using the `libs.versions.toml` file and the Gradle plug
 
 ### APIs
 
+The project follows the API First approach.
+
 #### OpenAPI
 For the OpenAPI descriptions it is required to use Redocly.
 The OpenAPI descriptions must be componentized following the Redocly conventions.
@@ -109,11 +111,13 @@ Everything must be tested.
 
 #### MFA
 Unit testing is mandatory for the `mfa` project and must achieve 100% code coverage.
+JaCoCo is used for code coverage.
 
 #### Family Ties
 
 The `family-ties` project already has a unit test suite and it must be extended to cover the new functionality.
 It must also achieve 100% code coverage.
+JaCoCo is used for code coverage.
 
 #### Blue Needle
 The `blue-needle` project already has a unit test suite and it must be extended to cover the new functionality.
@@ -175,3 +179,18 @@ The README file must be written such that it can be understood by a human, but a
 
 There is no need to copy the documentation from the reference implementations.
 Only the README.adoc file must be provided.
+
+## Additional information
+
+It is critical that the `./blue-needle`, `./family-ties`, and `./mfe-adapter` projects are not changed as these are and must remain the reference implementations. 
+All changes must be in the to be newly created subdirectories holding the example.
+
+Because the reference implementations are based on the IFF project from the book 'Software Engineering Done Right' there can be residual references to `iff`, these can be ignored and stripped.
+Also important, the `mfe-adapter` project has a framework of an MFA that is extendable by injecting functionality as needed. Keep the framework as much as possible intact. 
+It is set up such that when no implementations are provided to be injected, the MFA will just skip the step in its processing pipeline. 
+In other words, don't change the MFA as found in the `mfe-adapter` project, instead configure it as needed to get the required behavior. 
+The guides in its `docs` directory will be helpful.
+
+Any references to Kafka or event processing should be removed as they are not relevant to the Vanilla MFA.
+
+All API requests and responses are HTTP requests and responses.
