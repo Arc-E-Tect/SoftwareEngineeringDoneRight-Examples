@@ -76,8 +76,11 @@ public class MfeAdapterProxyController {
     public ResponseEntity<byte[]> proxy(HttpServletRequest httpRequest) throws IOException {
         String sessionId = extractSessionId(httpRequest);
         if (sessionId == null) {
+            if (mfeAdapterProperties.getSession().isRequired()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("{\"error\":\"unauthorized\",\"message\":\"No session cookie\"}".getBytes());
+        }
+            sessionId = "anonymous";
         }
 
         ApiKeyScope scope = (ApiKeyScope) httpRequest.getAttribute(ApiKeyValidationFilter.SCOPE_ATTRIBUTE);
