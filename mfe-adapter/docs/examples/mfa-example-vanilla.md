@@ -173,12 +173,5 @@ The `family-ties` project already has an architecture test suite and it should b
 In the directory `./examples/vanilla-mfa` there is a `README.adoc` file that contains the documentation for the Vanilla MFA that shows how to build and run the example.
 The README file must be written such that it can be understood by a human, but also acts as a guide for Gen AI tools.
 
-### Checklists
-
-#### MFA-Review
-A copy of the MFA review checklist is available in the directory `./mfe-adapter/docs` and must be copied into the directory `./examples/vanilla-mfa/docs`.
-The review checklist must be filled out based on the Vanilla MFA example.
-
-#### Security-Review
-A copy of the Security review checklist is available in the directory `./mfe-adapter/docs` and must be copied into the directory `./examples/vanilla-mfa/docs`.
-The security review checklist must be filled out based on the Vanilla MFA example.
+There is no need to copy the documentation from the reference implementations.
+Only the README.adoc file must be provided.
