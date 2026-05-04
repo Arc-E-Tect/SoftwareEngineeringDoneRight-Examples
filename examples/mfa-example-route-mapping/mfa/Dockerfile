@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 RUN groupadd -r route-mapping-mfa && useradd -r -g route-mapping-mfa route-mapping-mfa
 
 # Copy the built jar from builder stage
-COPY --from=builder /workspace/build/libs/vanilla-mfa-*.jar app.jar
+COPY --from=builder /workspace/build/libs/route-mapping-mfa-*.jar app.jar
 
 # Change ownership
 RUN chown -R route-mapping-mfa:route-mapping-mfa /app
