@@ -1,0 +1,19 @@
+{
+  "priority": 100,
+  "name": "Add relationship generic",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/familyties/relationships"
+  },
+  "response": {
+    "status": 201,
+    "headers": { "Content-Type": "application/json" },
+    "transformers": ["response-template"],
+    "jsonBody": {
+      "id": "{{randomValue type='UUID'}}",
+      "fromPersonId": "{{randomValue type='UUID'}}",
+      "toPersonId": "{{randomValue type='UUID'}}",
+      "type": "{{jsonPath request.body '$.type'}}"
+    }
+  }
+}

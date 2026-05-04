@@ -1,0 +1,209 @@
+= Payload-Shaping MFA Example
+:toc: left
+:toclevels: 2
+:icons: font
+:source-highlighter: rouge
+:doctype: article
+
+A working example of an MFA (Micro-Frontend Adapter) that performs
+_payload shaping_: translating Dutch field names used by the MFE into the
+English field names expected by the Family Ties microservice, and back again.
+
+This example is derived from the vanilla-mfa example.
+The only behavioural difference is that the MFA now intercepts every JSON
+request and response body and renames fields according to the Dutch ↔ English
+mapping defined in link:docs/derivation-guide.adoc[the derivation guide].
+
+== Architecture
+
+[source,text]
+----
+MFE (Dutch fields)
+      │
+      ▼ DutchToEnglishRequestTransformer
+   MFA proxy
+      │ EnglishToDutchResponseTransformer
+      ▼
+MS (English fields)
+----
+
+The two transformer beans are activated exclusively by the `payload-shaper`
+Spring profile.
+No MFA framework code was modified; the beans are injected via the SPI.
+
+== Prerequisites
+
+* Java 21
+* Node.js 22 / npm 11
+* Docker & Docker Compose (for the containerised run)
+
+== Running Locally (without Docker)
+
+=== 1. Start the Microservice
+
+[source,bash]
+----
+cd ms
+export H2_PASSWORD=""
+./gradlew bootRun
+----
+
+The MS starts on `http://localhost:8081`.
+
+=== 2. Start the MFA (payload-shaper profile)
+
+[source,bash]
+----
+cd mfa
+./gradlew bootRun -Dspring.profiles.active=payload-shaper
+----
+
+The MFA starts on `http://localhost:8080` and forwards requests to `http://localhost:8081`.
+
+=== 3. Start the MFE (dev server)
+
+[source,bash]
+----
+cd mfe
+npm install
+npm start
+----
+
+The Angular dev server starts on `http://localhost:4200` and proxies API calls to `http://localhost:8080`.
+
+Open `http://localhost:4200` in a browser.
+
+== Running with Docker Compose
+
+[source,bash]
+----
+cd examples/mfa-example-payload-shaping
+docker compose up --build
+----
+
+This builds and starts all three services in the correct order:
+
+[cols="1,1,2", options="header"]
+|===
+|Service |Port |Description
+|`ms`    |8081 |Family Ties microservice (H2 in-memory)
+|`mfa`   |8080 |MFA field-name-translating proxy (payload-shaper profile)
+|`mfe`   |4200 |Angular SPA with Dutch UI, served by nginx
+|===
+
+Open `http://localhost:4200` once all health checks pass.
+
+To stop and remove volumes:
+
+[source,bash]
+----
+docker compose down -v
+----
+
+== Running Tests
+
+=== Microservice (100 % JaCoCo line coverage)
+
+[source,bash]
+----
+cd ms
+export H2_PASSWORD=""
+./gradlew check
+----
+
+=== MFA (100 % JaCoCo line coverage)
+
+[source,bash]
+----
+cd mfa
+./gradlew check
+----
+
+=== MFE (Angular unit tests)
+
+[source,bash]
+----
+cd mfe
+npm install
+npm test
+----
+
+== Field-Name Mapping
+
+[cols="1,1", options="header"]
+|===
+|Dutch (MFE / MFA surface)
+|English (MS surface)
+
+|`voornaam`
+|`firstName`
+
+|`achternaam`
+|`lastName`
+
+|`vanVoornaam`
+|`fromFirstName`
+
+|`vanAchternaam`
+|`fromLastName`
+
+|`naarVoornaam`
+|`toFirstName`
+
+|`naarAchternaam`
+|`toLastName`
+
+|`soort`
+|`type`
+
+|`vanPersoon`
+|`fromPerson`
+
+|`naarPersoon`
+|`toPerson`
+|===
+
+Field _values_ are not translated; only JSON key names are renamed.
+
+== Module Layout
+
+[source,text]
+----
+mfa-example-payload-shaping/
+├── docker-compose.yml          # orchestrates MFE + MFA + MS
+├── docs/
+│   └── derivation-guide.adoc  # step-by-step derivation from vanilla-mfa
+├── ms/                         # Family Ties microservice (unchanged copy)
+├── mfa/                        # Micro-Frontend Adapter (payload-shaper profile)
+│   └── src/main/java/.../
+│       ├── domain/spi/
+│       │   ├── DutchToEnglishRequestTransformer.java
+│       │   └── EnglishToDutchResponseTransformer.java
+│       └── infrastructure/config/
+│           └── PayloadShapingConfiguration.java
+├── mfe/                        # Angular MFE (Dutch field names)
+└── openapi/                    # Dutch-named MFA API schemas
+    └── components/mfa/
+        ├── DutchPersonRequest.yaml
+        ├── DutchPersonResponse.yaml
+        ├── DutchRelationshipRequest.yaml
+        └── DutchRelationshipResponse.yaml
+----
+
+== payload-shaper Profile — What Is Disabled
+
+Under `spring.profiles.active=payload-shaper` the following beans are excluded
+(same as the vanilla profile):
+
+* `OidcProviderAdapter` — no OIDC discovery, no JWT validation
+* `AuthorizationServiceAdapter` — no IAS token swap
+* `AuthenticationApplicationService` / `AuthenticationController` — no login/logout endpoints
+* `ReferenceDataEventConsumer` / `KafkaConfiguration` — no Kafka
+* `WebClientConfiguration` — replaced by `PayloadShaperWebClientConfiguration` (plain HTTP `WebClient`)
+
+== Further Reading
+
+* link:docs/derivation-guide.adoc[Derivation Guide] — explains every change
+  made relative to the vanilla-mfa example and the design decisions behind them.
+* link:../../mfe-adapter/docs/examples/mfa-example-payload-shaping.md[Implementation Instructions]
+  — the original specification for this example, including clarifications.

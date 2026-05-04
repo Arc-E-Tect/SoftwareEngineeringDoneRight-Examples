@@ -1,0 +1,40 @@
+@if (loading()) {
+  <p class="loading">Loading&hellip;</p>
+}
+
+@if (error()) {
+  <div class="error-banner" role="alert">{{ error() }}</div>
+}
+
+<section class="panel">
+  <div class="card-header">
+    <h2>Microservice Health</h2>
+    <button type="button" (click)="refresh()" [disabled]="loading()">Refresh</button>
+  </div>
+  @if (healthStatus()) {
+    <span class="status-pill"
+          [class.pill-up]="healthStatus()!.status === 'UP'"
+          [class.pill-down]="healthStatus()!.status === 'DOWN'"
+          [class.pill-unknown]="healthStatus()!.status !== 'UP' && healthStatus()!.status !== 'DOWN'">
+      {{ healthStatus()!.status }}
+    </span>
+  } @else if (!loading()) {
+    <span class="status-pill pill-unknown">UNKNOWN</span>
+  }
+</section>
+
+<section class="panel">
+  <h2>Family Members &mdash; Smith family</h2>
+  @if (familyMembers().length > 0) {
+    <table>
+      <thead><tr><th>First Name</th><th>Last Name</th></tr></thead>
+      <tbody>
+        @for (person of familyMembers(); track person.lastName + person.firstName) {
+          <tr><td>{{ person.firstName }}</td><td>{{ person.lastName }}</td></tr>
+        }
+      </tbody>
+    </table>
+  } @else if (!loading()) {
+    <p class="loading">No family members found for &ldquo;Smith&rdquo;.</p>
+  }
+</section>

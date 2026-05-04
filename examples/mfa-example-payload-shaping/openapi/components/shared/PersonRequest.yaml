@@ -1,0 +1,17 @@
+type: object
+required:
+  - firstName
+  - lastName
+properties:
+  firstName:
+    type: string
+    pattern: "^[a-zA-Z0-9\\s'-]+$"
+    minLength: 1
+    maxLength: 100
+    example: John
+  lastName:
+    type: string
+    pattern: "^[a-zA-Z0-9\\s'-]+$"
+    minLength: 1
+    maxLength: 100
+    example: Smith

@@ -1,0 +1,79 @@
+= Family Ties API Contracts
+:toc: left
+:toclevels: 2
+:sectnums:
+:snippets: {snippets}
+
+== Persons
+=== Add person (201)
+include::{snippets}/familyties-add-person/curl-request.adoc[]
+include::{snippets}/familyties-add-person/http-request.adoc[]
+include::{snippets}/familyties-add-person/request-fields.adoc[]
+include::{snippets}/familyties-add-person/response-headers.adoc[]
+include::{snippets}/familyties-add-person/response-fields.adoc[]
+include::{snippets}/familyties-add-person/http-response.adoc[]
+
+=== Add person conflict (409)
+include::{snippets}/familyties-add-person-conflict/curl-request.adoc[]
+include::{snippets}/familyties-add-person-conflict/http-request.adoc[]
+include::{snippets}/familyties-add-person-conflict/request-fields.adoc[]
+include::{snippets}/familyties-add-person-conflict/response-fields.adoc[]
+include::{snippets}/familyties-add-person-conflict/http-response.adoc[]
+
+=== Get family members (200)
+include::{snippets}/familyties-get-family-members/curl-request.adoc[]
+include::{snippets}/familyties-get-family-members/http-request.adoc[]
+include::{snippets}/familyties-get-family-members/path-parameters.adoc[]
+include::{snippets}/familyties-get-family-members/query-parameters.adoc[]
+include::{snippets}/familyties-get-family-members/response-fields.adoc[]
+include::{snippets}/familyties-get-family-members/http-response.adoc[]
+
+=== Get family members not found (404)
+include::{snippets}/familyties-get-family-members-not-found/curl-request.adoc[]
+include::{snippets}/familyties-get-family-members-not-found/http-request.adoc[]
+include::{snippets}/familyties-get-family-members-not-found/path-parameters.adoc[]
+include::{snippets}/familyties-get-family-members-not-found/query-parameters.adoc[]
+include::{snippets}/familyties-get-family-members-not-found/http-response.adoc[]
+
+=== Delete person (204)
+include::{snippets}/familyties-delete-person/curl-request.adoc[]
+include::{snippets}/familyties-delete-person/http-request.adoc[]
+include::{snippets}/familyties-delete-person/path-parameters.adoc[]
+include::{snippets}/familyties-delete-person/query-parameters.adoc[]
+include::{snippets}/familyties-delete-person/http-response.adoc[]
+
+=== Delete person not found (404)
+include::{snippets}/familyties-delete-person-not-found/curl-request.adoc[]
+include::{snippets}/familyties-delete-person-not-found/http-request.adoc[]
+include::{snippets}/familyties-delete-person-not-found/path-parameters.adoc[]
+include::{snippets}/familyties-delete-person-not-found/query-parameters.adoc[]
+include::{snippets}/familyties-delete-person-not-found/response-fields.adoc[]
+include::{snippets}/familyties-delete-person-not-found/http-response.adoc[]
+
+== Relationships
+=== Add relationship (200)
+include::{snippets}/relationships-add/curl-request.adoc[]
+include::{snippets}/relationships-add/http-request.adoc[]
+include::{snippets}/relationships-add/request-fields.adoc[]
+include::{snippets}/relationships-add/response-fields.adoc[]
+include::{snippets}/relationships-add/http-response.adoc[]
+
+=== Add relationship conflict (409)
+include::{snippets}/relationships-add-conflict/curl-request.adoc[]
+include::{snippets}/relationships-add-conflict/http-request.adoc[]
+include::{snippets}/relationships-add-conflict/request-fields.adoc[]
+include::{snippets}/relationships-add-conflict/response-fields.adoc[]
+include::{snippets}/relationships-add-conflict/http-response.adoc[]
+
+=== Get relations by type (200)
+include::{snippets}/relationships-get-by-type/curl-request.adoc[]
+include::{snippets}/relationships-get-by-type/http-request.adoc[]
+include::{snippets}/relationships-get-by-type/path-parameters.adoc[]
+include::{snippets}/relationships-get-by-type/response-fields.adoc[]
+include::{snippets}/relationships-get-by-type/http-response.adoc[]
+
+=== Get relations by type not found (404)
+include::{snippets}/relationships-get-by-type-not-found/curl-request.adoc[]
+include::{snippets}/relationships-get-by-type-not-found/http-request.adoc[]
+include::{snippets}/relationships-get-by-type-not-found/path-parameters.adoc[]
+include::{snippets}/relationships-get-by-type-not-found/http-response.adoc[]

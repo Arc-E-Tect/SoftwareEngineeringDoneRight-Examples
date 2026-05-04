@@ -1,0 +1,183 @@
+= Payload-Shaping MFA Example — Derivation Guide
+:toc: left
+:toclevels: 3
+:icons: font
+:source-highlighter: rouge
+:doctype: article
+
+This guide explains how the _payload-shaping_ MFA example was derived from the
+_vanilla-mfa_ example and what each change achieves.
+It is intended as a companion to the source code for readers who want to
+understand the mechanics of field-name translation in the MFA framework.
+
+== Overview
+
+The vanilla-mfa example demonstrates a plain HTTP-proxy MFA with no
+payload modification.
+The payload-shaping variant extends it with two SPI beans that translate
+Dutch field names (used by the MFE) to English field names (expected by the
+Family Ties microservice) and vice versa.
+
+The relationship between the two examples is strictly _additive_:
+no MFA framework code was modified.
+Only new beans were registered under the `payload-shaper` Spring profile.
+
+== Field-Name Mapping
+
+The following table shows the Dutch ↔ English field-name mapping applied
+by the transformer beans.
+
+[cols="1,1", options="header"]
+|===
+|Dutch (MFE / MFA surface)
+|English (MS surface)
+
+|`voornaam`
+|`firstName`
+
+|`achternaam`
+|`lastName`
+
+|`vanVoornaam`
+|`fromFirstName`
+
+|`vanAchternaam`
+|`fromLastName`
+
+|`naarVoornaam`
+|`toFirstName`
+
+|`naarAchternaam`
+|`toLastName`
+
+|`soort`
+|`type`
+
+|`vanPersoon`
+|`fromPerson`
+
+|`naarPersoon`
+|`toPerson`
+|===
+
+Field _values_ (e.g. the relationship type value `parent`) pass through
+unchanged; only key names are translated.
+
+== Changes from vanilla-mfa
+
+=== Spring Profile
+
+All payload-shaping beans are guarded by `@Profile("payload-shaper")`.
+Beans that must _not_ activate under this profile (Kafka, reference-data
+consumers, etc.) were annotated with `@Profile("!payload-shaper")` to mirror
+the same constraint already applied for the vanilla profile.
+
+=== New Beans
+
+==== `DutchToEnglishRequestTransformer`
+
+Located in `mfa/src/main/java/.../domain/spi/`.
+
+Implements `RequestTransformer`.
+On every inbound request with a non-empty body the transformer:
+
+. Parses the JSON body with Jackson into a `Map<String, Object>`.
+. Recursively renames all Dutch keys to their English equivalents using the
+  mapping table above.
+. Serialises the translated map back to a `byte[]` and returns a new
+  `ProxiedRequest` with the updated body.
+
+If the body is not valid JSON the original request is returned unchanged.
+
+==== `EnglishToDutchResponseTransformer`
+
+Located in `mfa/src/main/java/.../domain/spi/`.
+
+Implements `ResponseTransformer`.
+On every response with a non-empty body the transformer:
+
+. Detects whether the body is a JSON array (starts with `[`) or a JSON object.
+. Recursively renames all English keys to their Dutch equivalents, handling
+  both nested objects (e.g. `fromPerson` / `toPerson`) and top-level arrays.
+. Returns a new `ProxiedResponse` with the translated body.
+
+Responses with an empty body (HTTP 204 No Content) are skipped.
+
+==== `PayloadShapingConfiguration`
+
+Located in `mfa/src/main/java/.../infrastructure/config/`.
+
+Declares both transformer beans as Spring `@Bean` definitions under
+`@Profile("payload-shaper")`.
+The `ObjectMapper` is injected from the Spring context (auto-configured by
+Spring Boot).
+
+=== OpenAPI Schemas
+
+Four Dutch-named schema files were added under `openapi/components/mfa/`:
+
+* `DutchPersonRequest.yaml` — `voornaam`, `achternaam`
+* `DutchPersonResponse.yaml` — `voornaam`, `achternaam`
+* `DutchRelationshipRequest.yaml` — `vanVoornaam`, `vanAchternaam`,
+  `naarVoornaam`, `naarAchternaam`, `soort`
+* `DutchRelationshipResponse.yaml` — `id`, `vanPersoon`, `naarPersoon`, `soort`
+
+The `mfa-api.yaml` root document was updated to reference these schemas for
+all MFA-surface endpoints.
+The MS-surface OpenAPI documents remain unchanged.
+
+=== MFE
+
+The Angular MFE (`mfe/`) was updated to use Dutch field names throughout:
+
+* `persons.service.ts` — `PersonRequest` and `PersonResponse` interfaces use
+  `voornaam` and `achternaam`.
+* `relationships.service.ts` — `RelationshipRequest` uses
+  `vanVoornaam`, `vanAchternaam`, `naarVoornaam`, `naarAchternaam`, `soort`;
+  `RelationshipResponse` uses `vanPersoon`, `naarPersoon`, `soort`.
+* All component TypeScript files and HTML templates use Dutch field names,
+  labels, and placeholder text.
+* The application title is `Familiebanden MFE`.
+
+=== Microservice (MS)
+
+The MS module is an identical copy of the vanilla-mfa MS.
+No changes were required because the transformers ensure the MS always
+receives and returns English field names.
+
+== Design Decisions
+
+=== Why recursive key renaming?
+
+The `fromPerson` / `toPerson` objects inside a relationship response are
+themselves person objects containing `firstName` and `lastName`.
+Recursive traversal ensures those nested fields are also translated without
+requiring separate handling per endpoint.
+
+=== Why Jackson instead of string replacement?
+
+String-level find-and-replace on JSON is fragile (e.g. a value that happens
+to contain the same string as a key name would be corrupted).
+Parsing to a `Map` and re-serialising guarantees correct, structure-aware
+renaming.
+
+=== Why is `ObjectMapper` injected rather than instantiated locally?
+
+The Spring Boot auto-configured `ObjectMapper` may carry project-specific
+customisations (e.g. date formats, module registration).
+Injecting it ensures the transformers are consistent with the rest of the
+application's serialisation behaviour.
+
+== Running the Example
+
+See the `README.adoc` at the root of this example for Docker Compose
+instructions.
+The key difference from the vanilla example is the active Spring profile:
+
+[source,yaml]
+----
+SPRING_PROFILES_ACTIVE: payload-shaper
+----
+
+This activates `application-payload-shaper.yml` and registers both
+transformer beans.

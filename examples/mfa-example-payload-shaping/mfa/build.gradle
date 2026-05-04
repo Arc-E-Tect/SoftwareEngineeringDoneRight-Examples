@@ -1,0 +1,114 @@
+plugins {
+    id 'org.springframework.boot' version '4.0.5'
+    id 'java'
+    id 'jacoco'
+}
+
+group = 'com.arc_e_tect.examples.mfeadapter'
+version = '1.0.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // BOM – imports Spring Boot and Spring dependency versions
+    implementation platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
+
+    // Web
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // Security & OAuth2 / OIDC (KeyCloak integration)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
+    // Reactive HTTP client (WebClient) used for outbound calls to MS / IAS / KeyCloak
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    // Persistence – H2 in-memory store for sessions and reference-data cache
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'com.h2database:h2'
+
+    // Validation
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Jackson (JSON)
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+    // Actuator
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Kafka – reference-data event subscription
+    implementation 'org.springframework.kafka:spring-kafka'
+
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+    systemProperty 'spring.profiles.active', 'payload-shaper'
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+tasks.named('jacocoTestCoverageVerification') {
+    dependsOn(tasks.named('test'))
+    // Exclude auth/Kafka/mTLS infrastructure not active in the vanilla profile,
+    // plus pure infrastructure (entities, config POJOs, domain models, main class)
+    classDirectories.setFrom(
+        fileTree(layout.buildDirectory.dir('classes/java/main')) {
+            // Non-vanilla-profile infrastructure
+            exclude '**/OidcProviderAdapter.class'
+            exclude '**/AuthorizationServiceAdapter.class'
+            exclude '**/AuthenticationApplicationService.class'
+            exclude '**/AuthenticationController.class'
+            exclude '**/ReferenceDataEventConsumer.class'
+            exclude '**/ReferenceDataEvent.class'
+            exclude '**/KafkaConfiguration.class'
+            exclude '**/WebClientConfiguration.class'
+            // Pure infrastructure with no logic to verify
+            exclude '**/MfeAdapterApplication.class'
+            exclude '**/AuthenticationException.class'
+            exclude '**/SessionEntity.class'
+            exclude '**/SessionEntity$*.class'
+            exclude '**/ReferenceDataEntity.class'
+            exclude '**/ReferenceDataEntity$*.class'
+            exclude '**/MfeAdapterProperties$OidcProvider.class'
+            exclude '**/MfeAdapterProperties$AuthorizationService.class'
+            exclude '**/MfeAdapterProperties$Mtls.class'
+            exclude '**/MfeAdapterProperties$Session.class'
+            exclude '**/MfeAdapterProperties$ApiGateway.class'
+            // Domain model null-branch guards in builders and pure data containers
+            exclude '**/ProxiedRequest$ProxiedRequestBuilder.class'
+            exclude '**/ProxiedResponse$ProxiedResponseBuilder.class'
+            exclude '**/ValidationResult.class'
+        }
+    )
+    sourceDirectories.setFrom(layout.projectDirectory.dir('src/main/java'))
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 1.0
+            }
+        }
+    }
+}
+
+tasks.named('check') { dependsOn(tasks.named('jacocoTestCoverageVerification')) }

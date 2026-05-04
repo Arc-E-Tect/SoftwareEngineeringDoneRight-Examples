@@ -1,0 +1,21 @@
+{
+  "priority": 10,
+  "name": "Add person success",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/familyties"
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Location": "/v1/familyties/{{jsonPath request.body '$.lastName'}}"
+    },
+    "transformers": ["response-template"],
+    "jsonBody": {
+      "id": "{{randomValue type='UUID'}}",
+      "firstName": "{{jsonPath request.body '$.firstName'}}",
+      "lastName": "{{jsonPath request.body '$.lastName'}}"
+    }
+  }
+}

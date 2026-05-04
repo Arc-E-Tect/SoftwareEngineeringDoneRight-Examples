@@ -13,3 +13,52 @@ The instructions for the Vanilla MFA example can be found [here](./vanilla-mfa-e
 
 The example must be implemented in `examples/mfa-example-payload-shaping` following the same structure as the Vanilla MFA example.
 The UI must be translated to Dutch, as must the APIs exposed by the MFA.
+
+## Clarifications
+
+The following clarifications apply to this example and supersede any ambiguity in the instructions above.
+
+### What "Dutch" means
+
+Only field **names** (JSON keys) are translated between Dutch and English.
+Field **values** (e.g. the relationship type string `parent`) pass through unchanged.
+URL paths remain in English (e.g. `/v1/familyties/persons`).
+
+### Dutch ↔ English field-name mapping
+
+| Dutch (MFE / MFA surface) | English (MS surface) |
+|---|---|
+| `voornaam` | `firstName` |
+| `achternaam` | `lastName` |
+| `vanVoornaam` | `fromFirstName` |
+| `vanAchternaam` | `fromLastName` |
+| `naarVoornaam` | `toFirstName` |
+| `naarAchternaam` | `toLastName` |
+| `soort` | `type` |
+| `vanPersoon` | `fromPerson` |
+| `naarPersoon` | `toPerson` |
+
+### Spring profile
+
+The active Spring profile for this example is `payload-shaper` (not `vanilla`).
+All payload-shaping beans are guarded with `@Profile("payload-shaper")`.
+Beans that must not activate under this profile are annotated `@Profile("!payload-shaper")`.
+
+### MFA SPI injection
+
+The translation is implemented exclusively via two new SPI beans registered under the `payload-shaper` profile.
+No MFA framework code is modified:
+
+- `DutchToEnglishRequestTransformer` — implements `RequestTransformer`; translates inbound request bodies from Dutch field names to English.
+- `EnglishToDutchResponseTransformer` — implements `ResponseTransformer`; translates outbound response bodies from English field names to Dutch.
+
+Both beans are declared in `PayloadShapingConfiguration` and receive the auto-configured `ObjectMapper` via constructor injection.
+
+### MS is unchanged
+
+The microservice (MS) module is a verbatim copy of the vanilla-mfa MS.
+Because the MFA transformers ensure the MS always receives and returns English field names, no changes to the MS are required.
+
+### Derivation guide
+
+A step-by-step explanation of every change made relative to the vanilla-mfa example is available in `examples/mfa-example-payload-shaping/docs/derivation-guide.adoc`.
