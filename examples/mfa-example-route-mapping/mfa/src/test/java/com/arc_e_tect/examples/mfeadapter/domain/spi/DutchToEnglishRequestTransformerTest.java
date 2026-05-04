@@ -142,6 +142,33 @@ class DutchToEnglishRequestTransformerTest {
     }
 
     // -------------------------------------------------------------------------
+    // transform() — nested map (recursive renameKeys)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("transform() translates Dutch fields inside nested map values recursively")
+    void transform_nestedMap_renamesDutchFieldsRecursively() throws Exception {
+        String json = "{\"persoon\":{\"voornaam\":\"Jan\",\"achternaam\":\"Smit\"}}";
+        ProxiedRequest request = ProxiedRequest.builder()
+                .method("POST")
+                .path("/v1/familyties/persons")
+                .body(json.getBytes(StandardCharsets.UTF_8))
+                .build();
+
+        ProxiedRequest result = transformer.transform(request);
+
+        @SuppressWarnings("unchecked")
+        var body = objectMapper.readValue(result.getBody(), java.util.Map.class);
+        @SuppressWarnings("unchecked")
+        var nested = (java.util.Map<String, Object>) body.get("persoon");
+        assertThat(nested)
+                .containsEntry("firstName", "Jan")
+                .containsEntry("lastName", "Smit")
+                .doesNotContainKey("voornaam")
+                .doesNotContainKey("achternaam");
+    }
+
+    // -------------------------------------------------------------------------
     // transform() — non-JSON body (graceful degradation)
     // -------------------------------------------------------------------------
 

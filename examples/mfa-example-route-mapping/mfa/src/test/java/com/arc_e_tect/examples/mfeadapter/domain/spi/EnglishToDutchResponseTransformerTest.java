@@ -162,6 +162,41 @@ class EnglishToDutchResponseTransformerTest {
     }
 
     // -------------------------------------------------------------------------
+    // transform() — map with a list field value (renameKeys List branch)
+    // -------------------------------------------------------------------------
+
+    @Test
+    @DisplayName("transform() translates fields inside a list that is a value within a map")
+    void transform_mapWithListFieldValue_renamesFieldsInsideList() throws Exception {
+        // A map where one field value is itself a list — exercises the
+        // else-if (value instanceof List) branch inside renameKeys(). Both the
+        // Map-item branch (lines inside the if) and the non-Map-item (primitive)
+        // branch (the else) are exercised.
+        String english = "{\"persons\":[{\"firstName\":\"Jan\",\"lastName\":\"Smit\"},\"literal\"]," +
+                         "\"type\":\"family\"}";
+        ProxiedResponse response = ProxiedResponse.builder()
+                .statusCode(200)
+                .body(english.getBytes(StandardCharsets.UTF_8))
+                .build();
+
+        ProxiedResponse result = transformer.transform(response, dummyRequest);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> body = objectMapper.readValue(result.getBody(), Map.class);
+        @SuppressWarnings("unchecked")
+        List<Object> persons = (List<Object>) body.get("persons");
+        assertThat(persons).hasSize(2);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> first = (Map<String, Object>) persons.get(0);
+        assertThat(first)
+                .containsEntry("voornaam", "Jan")
+                .containsEntry("achternaam", "Smit")
+                .doesNotContainKey("firstName");
+        // Non-Map item passes through unchanged
+        assertThat(persons.get(1)).isEqualTo("literal");
+    }
+
+    // -------------------------------------------------------------------------
     // transform() — non-JSON body (graceful degradation)
     // -------------------------------------------------------------------------
 

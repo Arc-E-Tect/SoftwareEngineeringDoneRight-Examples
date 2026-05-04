@@ -185,4 +185,44 @@ class MicroserviceRestClientAdapterTest {
 
         assertThat(response.getStatusCode()).isEqualTo(200);
     }
+
+    @Test
+    @DisplayName("forward – hop-by-hop response headers are stripped before returning to caller")
+    void forward_hopByHopResponseHeaders_areNotForwarded() {
+        // Arrange: MS response includes hop-by-hop headers that must not be forwarded
+        HttpHeaders msHeaders = new HttpHeaders();
+        msHeaders.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+        msHeaders.set("Transfer-Encoding", "chunked");
+        msHeaders.set("Content-Length", "8");
+        msHeaders.set("Connection", "keep-alive");
+        msHeaders.set("X-Custom-Header", "keep-me");
+        ResponseEntity<byte[]> entity = new ResponseEntity<>(
+                "{\"id\":1}".getBytes(), msHeaders, HttpStatus.OK);
+
+        when(webClient.method(any())).thenReturn(uriSpec);
+        when(uriSpec.uri(any(String.class))).thenReturn(bodySpec);
+        doAnswer(inv -> {
+            java.util.function.Consumer<HttpHeaders> c = inv.getArgument(0);
+            c.accept(new HttpHeaders());
+            return bodySpec;
+        }).when(bodySpec).headers(any());
+        when(bodySpec.bodyValue(any())).thenReturn(headersSpec);
+        when(headersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.toEntity(byte[].class)).thenReturn(Mono.just(entity));
+
+        ProxiedRequest request = ProxiedRequest.builder()
+                .method("GET").path("/v1/persons").build();
+
+        // Act
+        ProxiedResponse response = adapter.forward(request, null);
+
+        // Assert: hop-by-hop headers stripped, application header retained
+        assertThat(response.getHeaders()).doesNotContainKey("Transfer-Encoding");
+        assertThat(response.getHeaders()).doesNotContainKey("transfer-encoding");
+        assertThat(response.getHeaders()).doesNotContainKey("Content-Length");
+        assertThat(response.getHeaders()).doesNotContainKey("content-length");
+        assertThat(response.getHeaders()).doesNotContainKey("Connection");
+        assertThat(response.getHeaders()).doesNotContainKey("connection");
+        assertThat(response.getHeaders()).containsKey("X-Custom-Header");
+    }
 }
