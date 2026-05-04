@@ -15,8 +15,16 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class VanillaWebClientConfiguration {
 
+    private final MfeAdapterProperties mfeAdapterProperties;
+
+    public VanillaWebClientConfiguration(MfeAdapterProperties mfeAdapterProperties) {
+        this.mfeAdapterProperties = mfeAdapterProperties;
+    }
+
     @Bean("microserviceWebClient")
     public WebClient microserviceWebClient() {
-        return WebClient.builder().build();
+        return WebClient.builder()
+                .baseUrl(mfeAdapterProperties.getMicroservice().getBaseUrl())
+                .build();
     }
 }
