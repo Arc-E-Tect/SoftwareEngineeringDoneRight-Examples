@@ -17,7 +17,7 @@ public interface MicroserviceClientPort {
      * Forward the request to the microservice and return its response.
      *
      * @param request    the (optionally transformed) request to forward
-     * @param innerToken the inner token issued by IAS, used as Bearer credential
+     * @param innerToken the inner token issued by SecService, used as Bearer credential
      * @return the raw response from the microservice
      */
     ProxiedResponse forward(ProxiedRequest request, InnerToken innerToken);

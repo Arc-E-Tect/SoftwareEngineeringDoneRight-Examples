@@ -128,8 +128,8 @@ public class MfeAdapterProperties {
         private String baseUrl;
         private String tokenSwapPath = "/token/swap";
         /**
-         * Whether the Authorization Service (IAS) call is required for every request.
-         * When {@code true} (the default), the IAS token-swap step is performed for
+         * Whether the Authorization Service (SecService) call is required for every request.
+         * When {@code true} (the default), the SecService token-swap step is performed for
          * every proxied request.  Set to {@code false} to skip the inner-token
          * validation and let the MFA act as a pure session-authenticated proxy.
          */

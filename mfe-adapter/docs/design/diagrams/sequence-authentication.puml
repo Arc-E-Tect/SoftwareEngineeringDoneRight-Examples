@@ -9,30 +9,30 @@ actor "End User" as User
 participant "Angular MFE" as MFE
 participant "API Gateway" as AG
 participant "MFA" as MFA
-participant "KeyCloak" as KC
+participant "Identity Provider (IdP)" as IdP
 
 == Login initiation ==
 
 User -> MFE : clicks "Login"
 MFE -> AG : GET /auth/login
 AG -> MFA : GET /auth/login\n[X-API-Key-Validated: true]
-MFA -> MFA : KeyCloakAdapter.buildAuthorizationUrl()\n(state = random UUID)
-MFA --> AG : 302 Location: {keycloak}/auth?response_type=code\n&client_id=...&state=...
+MFA -> MFA : IdPAdapter.buildAuthorizationUrl()\n(state = random UUID)
+MFA --> AG : 302 Location: {idp}/auth?response_type=code\n&client_id=...&state=...
 AG --> MFE : 302 redirect
-MFE --> KC : GET /auth\n[browser redirect]
+MFE --> IdP : GET /auth\n[browser redirect]
 
-== KeyCloak authentication ==
+== Identity Provider (IdP) authentication ==
 
-KC -> User : Login form
-User --> KC : credentials
-KC --> MFE : 302 Location: /auth/callback?code=...&state=...
+IdP -> User : Login form
+User --> IdP : credentials
+IdP --> MFE : 302 Location: /auth/callback?code=...&state=...
 
 == Authorization Code exchange ==
 
 MFE -> AG : GET /auth/callback?code=...&state=...
 AG -> MFA : GET /auth/callback?code=...&state=...\n[X-API-Key-Validated: true]
-MFA -> KC : POST /token\n[grant_type=authorization_code, code=...,\nclient_id, client_secret]
-KC --> MFA : { access_token, expires_in, ... }
+MFA -> IdP : POST /token\n[grant_type=authorization_code, code=...,\nclient_id, client_secret]
+IdP --> MFA : { access_token, expires_in, ... }
 MFA -> MFA : AuthenticationApplicationService.authenticate()\nCreate Session(UUID, userToken, TTL)
 MFA -> MFA : SessionStoreAdapter.save(session)
 MFA --> AG : 302 Location: /\nSet-Cookie: MFESESSION=<sessionId>; HttpOnly; Secure; SameSite=Strict

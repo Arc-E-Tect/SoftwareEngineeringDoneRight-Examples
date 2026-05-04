@@ -27,7 +27,7 @@ In Docker, nginx handles the proxying via `nginx.conf`.
 
 `mfa/`::
 Spring Boot 4 pass-through adapter — a copy of `mfe-adapter` with the `vanilla` Spring profile applied.
-Under the vanilla profile all OAuth2, Kafka, IAS, and session infrastructure is disabled.
+Under the vanilla profile all OAuth2, Kafka, SecService, and session infrastructure is disabled.
 Every incoming HTTP request is forwarded verbatim to the downstream microservice.
 
 `ms/`::
@@ -141,7 +141,7 @@ npm test
 Under `spring.profiles.active=vanilla` the following beans are excluded:
 
 * `OidcProviderAdapter` — no OIDC discovery, no JWT validation
-* `AuthorizationServiceAdapter` — no IAS token swap
+* `AuthorizationServiceAdapter` — no SecService token swap
 * `AuthenticationApplicationService` / `AuthenticationController` — no login/logout endpoints
 * `ReferenceDataEventConsumer` / `KafkaConfiguration` — no Kafka
 * `WebClientConfiguration` — replaced by `VanillaWebClientConfiguration` (plain HTTP `WebClient`)

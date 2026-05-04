@@ -266,8 +266,8 @@ For each proxied request the MFE Adapter calls the Authorization Service to swap
 The inner token carries RBAC and ABAC claims that the MS uses for fine-grained authorization.
 The inner token is never stored; it is acquired per-request and attached to the outbound MS call as a `Bearer` token.
 
-The IAS call is conditional on `mfe-adapter.authorization-service.required` (default `true`).
-Setting it to `false` puts the MFA into pure session-authenticated proxy mode: the IAS token-swap step is skipped and no `Authorization` header is added to the forwarded request.
+The SecService call is conditional on `mfe-adapter.authorization-service.required` (default `true`).
+Setting it to `false` puts the MFA into pure session-authenticated proxy mode: the SecService token-swap step is skipped and no `Authorization` header is added to the forwarded request.
 This is useful during development or when the downstream service does not require inner-token validation.
 
 === mTLS

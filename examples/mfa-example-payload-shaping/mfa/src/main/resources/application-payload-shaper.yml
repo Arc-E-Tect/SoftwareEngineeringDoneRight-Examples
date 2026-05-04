@@ -1,4 +1,4 @@
-# Payload-shaper profile – no auth, no SSL, no Kafka, no IAS token-swap.
+# Payload-shaper profile – no auth, no SSL, no Kafka, no SecService token-swap.
 # The MFA acts as a field-name-translating HTTP proxy to the microservice.
 
 server:

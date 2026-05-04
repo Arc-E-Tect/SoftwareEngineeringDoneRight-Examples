@@ -7,7 +7,7 @@ import java.time.Instant;
  *
  * <p>The token is an opaque or JWT value returned by the identity provider
  * after successful authentication.  The MFA stores it server-side and
- * presents it to IAS for swapping into an inner token.
+ * presents it to SecService for swapping into an inner token.
  *
  * @param tokenValue  the raw token string (JWT or opaque)
  * @param expiresAt   expiry instant of the token

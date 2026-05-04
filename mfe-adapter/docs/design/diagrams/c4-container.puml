@@ -7,8 +7,8 @@ title MFA Template — C4 Container
 
 Person(user, "End User")
 System_Ext(ag, "API Gateway")
-System_Ext(keycloak, "KeyCloak")
-System_Ext(ias, "IAS")
+System_Ext(idp, "Identity Provider (IdP)")
+System_Ext(secservice, "SecService")
 System_Ext(ms, "Microservice")
 System_Ext(kafka, "Kafka")
 
@@ -19,8 +19,8 @@ System_Boundary(mfaSystem, "MFA Service") {
 
 Rel(ag, mfaApp, "REST (mTLS)", "HTTPS")
 Rel(mfaApp, ms, "REST (mTLS + inner-token)", "HTTPS")
-Rel(mfaApp, keycloak, "OAuth2 OIDC", "HTTPS")
-Rel(mfaApp, ias, "Token swap", "HTTPS mTLS")
+Rel(mfaApp, idp, "OAuth2 OIDC", "HTTPS")
+Rel(mfaApp, secservice, "Token swap", "HTTPS mTLS")
 Rel(mfaApp, kafka, "Consumes reference-data events", "Kafka")
 Rel(mfaApp, h2, "JPA", "JDBC")
 Rel(user, ag, "HTTPS", "via MFE")

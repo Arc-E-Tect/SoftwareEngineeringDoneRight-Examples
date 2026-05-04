@@ -56,11 +56,11 @@ class MfeAdapterPropertiesSupplementTest {
         MfeAdapterProperties.AuthorizationService auth = new MfeAdapterProperties.AuthorizationService();
         assertThat(auth.isRequired()).isTrue();
         auth.setRequired(false);
-        auth.setBaseUrl("http://ias.example.com");
+        auth.setBaseUrl("http://secservice.example.com");
         auth.setTokenSwapPath("/swap");
 
         assertThat(auth.isRequired()).isFalse();
-        assertThat(auth.getBaseUrl()).isEqualTo("http://ias.example.com");
+        assertThat(auth.getBaseUrl()).isEqualTo("http://secservice.example.com");
         assertThat(auth.getTokenSwapPath()).isEqualTo("/swap");
     }
 

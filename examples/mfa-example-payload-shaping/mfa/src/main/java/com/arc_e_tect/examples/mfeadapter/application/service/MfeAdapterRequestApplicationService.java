@@ -27,7 +27,7 @@ import java.util.List;
  * Application service that orchestrates the MFA's core request-handling flow:
  * <ol>
  *   <li>Validate the session and retrieve the associated user token.</li>
- *   <li>Obtain an inner token from IAS (skipped when
+ *   <li>Obtain an inner token from SecService (skipped when
  *       {@code mfe-adapter.authorization-service.required=false}).</li>
  *   <li>Run all applicable {@link RequestValidator}s.</li>
  *   <li>Run all applicable {@link RequestTransformer}s.</li>
@@ -78,12 +78,12 @@ public class MfeAdapterRequestApplicationService implements HandleRequestUseCase
 
         UserToken userToken = session.userToken();
 
-        // 2. Swap user token for inner token (IAS) — conditional on config
+        // 2. Swap user token for inner token (SecService) — conditional on config
         InnerToken innerToken = null;
         if (mfeAdapterProperties.getAuthorizationService().isRequired()) {
             innerToken = innerTokenService.swapForInnerToken(userToken);
         } else {
-            log.debug("IAS call skipped – mfe-adapter.authorization-service.required=false");
+            log.debug("SecService call skipped – mfe-adapter.authorization-service.required=false");
         }
 
         // 3. Run validators

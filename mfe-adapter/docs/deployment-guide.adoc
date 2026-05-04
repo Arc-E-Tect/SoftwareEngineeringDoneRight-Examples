@@ -260,7 +260,7 @@ spring:
 
 == OIDC Provider Configuration (Production)
 
-The MFE Adapter is OIDC-agnostic and works with any standards-compliant identity provider (e.g. Keycloak, Auth0, Azure AD, Okta).
+The MFE Adapter is OIDC-agnostic and works with any standards-compliant identity provider (e.g. PingFederate, Auth0, Azure AD, Okta).
 The following steps are generic; refer to your chosen provider's documentation for the exact UI or API.
 
 === Create a Realm or Tenant
