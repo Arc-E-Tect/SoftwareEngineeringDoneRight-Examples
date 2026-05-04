@@ -1,4 +1,4 @@
-# Multi-stage build for Vanilla MFA application
+# Multi-stage build for Payload-Shaping MFA application
 # Stage 1: Build the application
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /workspace
@@ -26,16 +26,16 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 # Create a non-root user
-RUN groupadd -r vanilla-mfa && useradd -r -g vanilla-mfa vanilla-mfa
+RUN groupadd -r payload-shaping-mfa && useradd -r -g payload-shaping-mfa payload-shaping-mfa
 
 # Copy the built jar from builder stage
 COPY --from=builder /workspace/build/libs/vanilla-mfa-*.jar app.jar
 
 # Change ownership
-RUN chown -R vanilla-mfa:vanilla-mfa /app
+RUN chown -R payload-shaping-mfa:payload-shaping-mfa /app
 
 # Switch to non-root user
-USER vanilla-mfa
+USER payload-shaping-mfa
 
 # Expose port
 EXPOSE 8080
@@ -44,5 +44,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-# Run the application with the vanilla profile
-ENTRYPOINT ["java", "-Dspring.profiles.active=vanilla", "-jar", "/app/app.jar"]
+# Run the application with the payload-shaper profile
+ENTRYPOINT ["java", "-Dspring.profiles.active=payload-shaper", "-jar", "/app/app.jar"]

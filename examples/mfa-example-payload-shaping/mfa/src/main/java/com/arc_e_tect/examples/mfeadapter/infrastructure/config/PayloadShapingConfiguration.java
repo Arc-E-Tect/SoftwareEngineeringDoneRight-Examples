@@ -19,6 +19,18 @@ import org.springframework.context.annotation.Profile;
 @Profile("payload-shaper")
 public class PayloadShapingConfiguration {
 
+    /**
+     * Explicit Jackson 2 {@link ObjectMapper} bean.
+     *
+     * <p>Spring Boot 4 auto-configures a Jackson 3 ({@code tools.jackson}) mapper,
+     * which is a different class. The payload transformers depend on the Jackson 2
+     * API ({@code com.fasterxml.jackson}), so we register the mapper explicitly.
+     */
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
+    }
+
     @Bean
     public DutchToEnglishRequestTransformer dutchToEnglishRequestTransformer(ObjectMapper objectMapper) {
         return new DutchToEnglishRequestTransformer(objectMapper);
