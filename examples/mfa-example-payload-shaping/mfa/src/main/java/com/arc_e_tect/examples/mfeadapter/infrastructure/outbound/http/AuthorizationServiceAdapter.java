@@ -13,6 +13,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.time.Instant;
 import java.util.Map;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+
 /**
  * Adapter that calls the Authorization Service to swap the
  * OIDC user token for an inner token enriched with RBAC and ABAC claims.
@@ -20,7 +22,7 @@ import java.util.Map;
  * <p>Communication with the Authorization Service uses the same mTLS {@link WebClient} configured
  * for microservice calls.
  */
-@org.springframework.context.annotation.Profile("!payload-shaper")
+@ConditionalOnProperty(name = "mfe-adapter.authorization-service.required", havingValue = "true")
 @Component
 public class AuthorizationServiceAdapter implements InnerTokenServicePort {
 

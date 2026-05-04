@@ -9,6 +9,7 @@ import com.arc_e_tect.examples.mfeadapter.domain.port.outbound.SessionStorePort;
 import com.arc_e_tect.examples.mfeadapter.infrastructure.config.MfeAdapterProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -18,7 +19,7 @@ import java.util.UUID;
  * Application service handling the authentication lifecycle:
  * OAuth2 callback, session creation, and logout.
  */
-@org.springframework.context.annotation.Profile("!payload-shaper")
+@ConditionalOnProperty(name = "mfe-adapter.session.required", havingValue = "true")
 @Service
 public class AuthenticationApplicationService implements AuthenticateUserUseCase {
 
