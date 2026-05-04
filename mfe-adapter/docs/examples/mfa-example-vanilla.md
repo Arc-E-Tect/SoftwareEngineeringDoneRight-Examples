@@ -193,4 +193,50 @@ The guides in its `docs` directory will be helpful.
 
 Any references to Kafka or event processing should be removed as they are not relevant to the Vanilla MFA.
 
+## Clarifications
+
+The following decisions and clarifications were captured during the planning phase.
+
+### Reference implementations must remain unchanged
+
+The `./blue-needle`, `./family-ties`, and `./mfe-adapter` projects are reference implementations and must not be modified.
+All changes must go into the newly created directories under `./examples/vanilla-mfa/`.
+
+### MFE Adapter framework: configure, do not modify
+
+The `mfe-adapter` project contains a configurable framework that is extended via dependency injection.
+When no implementation is injected for a pipeline step, the MFA skips that step automatically.
+The framework pipeline classes must remain intact in the copied MFA project; vanilla behaviour is achieved by providing dedicated vanilla-specific beans (e.g. `VanillaPreAuthFilter`, `VanillaSessionStorePort`, `VanillaSecurityConfiguration`) rather than modifying framework source files.
+
+### Health check endpoint
+
+The MS must expose a health check endpoint (Spring Boot Actuator `GET /actuator/health` is sufficient).
+The MFE must call this endpoint to display system health.
+Any existing functionality that calls an IFF-specific endpoint must be discarded; the IFF endpoint is a legacy remnant and does not exist in the vanilla MS.
+
+### JaCoCo coverage requirement
+
+Both the MS (`examples/vanilla-mfa/ms/`) and the MFA (`examples/vanilla-mfa/mfa/`) must achieve 100% JaCoCo line coverage.
+Coverage is enforced via unit tests only; integration tests or Spring context tests are not relied upon to satisfy the coverage threshold.
+
+### MFE user interface: three tabs
+
+The MFE user interface must reflect the Family Ties MS API groups.
+There must be exactly three tabs, one per API group:
+
+| Tab | Functionality |
+|---|---|
+| **Persons** | Add a person, retrieve a person by last name, delete a person by last name |
+| **Relationships** | Create a relationship between persons |
+| **System** | Display microservice health (calls `GET /actuator/health` through the MFA) |
+
+### Transport and security
+
+The vanilla example uses plain HTTP throughout (no HTTPS, no mTLS, no API key validation, no session cookies from the MFE).
+Port assignments: MFE dev server on `4200`, MFA on `8080`, MS on `8081`.
+
+### OpenAPI approach
+
+The project follows an API-first approach: OpenAPI specifications are authored first and drive both the implementation and the WireMock stubs used by the MFE smoke tests.
+
 All API requests and responses are HTTP requests and responses.
