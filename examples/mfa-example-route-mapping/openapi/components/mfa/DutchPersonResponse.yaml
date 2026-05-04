@@ -1,0 +1,8 @@
+type: object
+properties:
+  voornaam:
+    type: string
+    example: Jan
+  achternaam:
+    type: string
+    example: Smit

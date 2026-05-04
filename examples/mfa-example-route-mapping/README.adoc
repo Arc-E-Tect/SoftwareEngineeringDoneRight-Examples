@@ -1,0 +1,223 @@
+= Route-Mapping MFA Example
+:toc: left
+:toclevels: 2
+:icons: font
+:source-highlighter: rouge
+:doctype: article
+
+A working example of an MFA (Micro-Frontend Adapter) that combines
+_path-segment rewriting_ with _payload shaping_: the MFA accepts requests
+on paths that include a language-segment (`dutch`) inserted after the API
+version prefix (e.g. `/v1/dutch/familyties`), strips that segment before
+forwarding to the Family Ties microservice, and translates Dutch field
+names in the request and response bodies.
+
+This example is derived from the payload-shaping example.
+The only behavioural additions are:
+
+. A `RegexRoutingStrategy` bean that rewrites the request path from
+  `/v1/dutch/…` to `/v1/…` before forwarding.
+. A `RouteMappingProperties` `@ConfigurationProperties` class that carries
+  the regex pattern and replacement string from YAML configuration.
+. Updated MFE service paths and proxy configuration to call
+  `/v1/dutch/…` endpoints.
+
+The microservice is unchanged.
+All field-name transformers from the payload-shaping example are reused
+without modification.
+
+== Architecture
+
+[source,text]
+----
+MFE (Dutch fields, /v1/dutch/… paths)
+      │
+      ▼ RegexRoutingStrategy: /v1/dutch/… → /v1/…
+      ▼ DutchToEnglishRequestTransformer
+   MFA proxy
+      │ EnglishToDutchResponseTransformer
+      ▼
+MS (English fields, /v1/familyties/… paths)
+----
+
+The `RegexRoutingStrategy` and the two transformer beans are activated
+exclusively by the `route-mapping` Spring profile.
+No MFA framework code was modified; the beans are injected via the SPI.
+
+== Prerequisites
+
+* Java 21
+* Node.js 22 / npm 11
+* Docker & Docker Compose (for the containerised run)
+
+== Running Locally (without Docker)
+
+=== 1. Start the Microservice
+
+[source,bash]
+----
+cd ms
+export H2_PASSWORD=""
+./gradlew bootRun
+----
+
+The MS starts on `http://localhost:8081`.
+
+=== 2. Start the MFA (route-mapping profile)
+
+[source,bash]
+----
+cd mfa
+./gradlew bootRun -Dspring.profiles.active=route-mapping
+----
+
+The MFA starts on `http://localhost:8080` and forwards requests to `http://localhost:8081`.
+
+=== 3. Start the MFE (dev server)
+
+[source,bash]
+----
+cd mfe
+npm install
+npm start
+----
+
+The Angular dev server starts on `http://localhost:4200` and proxies API calls to `http://localhost:8080`.
+
+Open `http://localhost:4200` in a browser.
+
+== Running with Docker Compose
+
+[source,bash]
+----
+cd examples/mfa-example-route-mapping
+docker compose up --build
+----
+
+This builds and starts all three services in the correct order:
+
+[cols="1,1,2", options="header"]
+|===
+|Service |Port |Description
+|`ms`    |8081 |Family Ties microservice (H2 in-memory)
+|`mfa`   |8080 |MFA route-rewriting + field-name-translating proxy (route-mapping profile)
+|`mfe`   |4200 |Angular SPA with Dutch UI, served by nginx
+|===
+
+Open `http://localhost:4200` once all health checks pass.
+
+To stop and remove volumes:
+
+[source,bash]
+----
+docker compose down -v
+----
+
+== Running Tests
+
+=== Microservice (100 % JaCoCo line coverage)
+
+[source,bash]
+----
+cd ms
+export H2_PASSWORD=""
+./gradlew check
+----
+
+=== MFA (100 % JaCoCo line coverage)
+
+[source,bash]
+----
+cd mfa
+./gradlew check
+----
+
+=== MFE (Angular unit tests)
+
+[source,bash]
+----
+cd mfe
+npm install
+npm test
+----
+
+== Field-Name Mapping
+
+[cols="1,1", options="header"]
+|===
+|Dutch (MFE / MFA surface)
+|English (MS surface)
+
+|`voornaam`
+|`firstName`
+
+|`achternaam`
+|`lastName`
+
+|`vanVoornaam`
+|`fromFirstName`
+
+|`vanAchternaam`
+|`fromLastName`
+
+|`naarVoornaam`
+|`toFirstName`
+
+|`naarAchternaam`
+|`toLastName`
+
+|`soort`
+|`type`
+
+|`vanPersoon`
+|`fromPerson`
+
+|`naarPersoon`
+|`toPerson`
+|===
+
+Field _values_ are not translated; only JSON key names are renamed.
+
+== Module Layout
+
+[source,text]
+----
+mfa-example-route-mapping/
+├── docker-compose.yml          # orchestrates MFE + MFA + MS
+├── docs/
+│   └── derivation-guide.adoc  # step-by-step derivation from payload-shaping example
+├── ms/                         # Family Ties microservice (unchanged copy)
+├── mfa/                        # Micro-Frontend Adapter (route-mapping profile)
+│   └── src/main/java/.../
+│       ├── domain/spi/
+│       │   ├── DutchToEnglishRequestTransformer.java  # inherited unchanged
+│       │   ├── EnglishToDutchResponseTransformer.java # inherited unchanged
+│       │   └── RegexRoutingStrategy.java              # NEW: strips /dutch segment
+│       └── infrastructure/config/
+│           ├── RouteMappingConfiguration.java         # registers all three beans
+│           └── RouteMappingProperties.java            # NEW: @ConfigurationProperties
+├── mfe/                        # Angular MFE (Dutch field names, /v1/dutch/… paths)
+└── openapi/                    # Dutch-named MFA API schemas (paths: /v1/dutch/…)
+    └── components/mfa/
+        ├── DutchPersonRequest.yaml
+        ├── DutchPersonResponse.yaml
+        ├── DutchRelationshipRequest.yaml
+        └── DutchRelationshipResponse.yaml
+----
+
+== route-mapping Profile — What Is Disabled
+
+Under `spring.profiles.active=route-mapping` the following beans are excluded:
+
+* `OidcProviderAdapter` — no OIDC discovery, no JWT validation
+* `AuthorizationServiceAdapter` — no SecService token swap
+* `AuthenticationApplicationService` / `AuthenticationController` — no login/logout endpoints
+* `ReferenceDataEventConsumer` / `KafkaConfiguration` — no Kafka
+* `WebClientConfiguration` — replaced by `RouteMappingWebClientConfiguration` (plain HTTP `WebClient`)
+
+== Further Reading
+
+* link:docs/derivation-guide.adoc[Derivation Guide] — explains every change
+  made relative to the payload-shaping example and the design decisions behind them.
+* link:../../mfe-adapter/docs/examples/mfa-example-route-mapping.md[Implementation Instructions]
+  — the original specification for this example, including clarifications.

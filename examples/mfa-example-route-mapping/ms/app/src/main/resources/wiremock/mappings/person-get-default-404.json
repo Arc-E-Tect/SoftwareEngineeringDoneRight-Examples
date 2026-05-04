@@ -1,0 +1,11 @@
+{
+  "priority": 100,
+  "name": "Get persons default not found",
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/v1/familyties/lastnames/.*"
+  },
+  "response": {
+    "status": 404
+  }
+}

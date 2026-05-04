@@ -1,0 +1,195 @@
+openapi: 3.1.1
+info:
+  title: Family Ties API
+  version: 1.0.0
+servers:
+  - url: https://sedr.example.com/v1
+paths:
+  /familyties:
+    post:
+      summary: Add a person
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonRequest'
+      responses:
+        '201':
+          description: Person created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Person'
+        '400':
+          description: Bad request - invalid input or potential security threat
+        '409':
+          description: Person already exists
+  /familyties/lastnames/{lastName}:
+    get:
+      summary: Get family members by last name
+      parameters:
+        - name: lastName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+      responses:
+        '200':
+          description: Persons found
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Person'
+        '400':
+          description: Bad request - invalid input or potential security threat
+        '404':
+          description: Not found
+    delete:
+      summary: Delete person by last name and first name
+      parameters:
+        - name: lastName
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: firstname
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+        '400':
+          description: Bad request - invalid input or potential security threat
+        '404':
+          description: Not found
+  /familyties/relationships:
+    post:
+      summary: Add a relationship
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RelationshipRequest'
+      responses:
+        '200':
+          description: Created relationship
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Relationship'
+        '400':
+          description: Bad request - invalid input or potential security threat
+        '409':
+          description: Constraint violation
+  /familyties/relationships/{type}/lastnames/{lastName}:
+    get:
+      summary: Get relationships by type and last name
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/RelationshipType'
+        - name: lastName
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Relations found
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Person'
+        '400':
+          description: Bad request - invalid input or potential security threat
+        '404':
+          description: Not found
+components:
+  schemas:
+    PersonRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+    Person:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+    RelationshipRequest:
+      type: object
+      required:
+        - fromFirstName
+        - fromLastName
+        - toFirstName
+        - toLastName
+        - type
+      properties:
+        fromFirstName:
+          type: string
+        fromLastName:
+          type: string
+        toFirstName:
+          type: string
+        toLastName:
+          type: string
+        type:
+          $ref: '#/components/schemas/RelationshipType'
+    Relationship:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fromPersonId:
+          type: string
+          format: uuid
+        toPersonId:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/RelationshipType'
+    RelationshipType:
+      type: string
+      enum:
+        - parent
+        - grandparent
+        - sibling
+        - child
+        - spouse
+        - cousin
+        - uncle
+        - aunt
+        - nephew
+        - niece
