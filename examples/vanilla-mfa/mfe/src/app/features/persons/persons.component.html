@@ -1,0 +1,63 @@
+<section class="panel">
+  <h2 class="panel-title">Add Person</h2>
+  <form (ngSubmit)="addPerson()">
+    <div class="form-row">
+      <input type="text" [(ngModel)]="addForm.firstName" name="addFirstName" placeholder="First name" />
+      <input type="text" [(ngModel)]="addForm.lastName" name="addLastName" placeholder="Last name" />
+      <button type="submit" [disabled]="addLoading() || !addForm.firstName.trim() || !addForm.lastName.trim()">
+        {{ addLoading() ? 'Adding\u2026' : 'Add' }}
+      </button>
+    </div>
+  </form>
+  @if (addError()) {
+    <div class="error-banner" role="alert">{{ addError() }}</div>
+  }
+  @if (addResult()) {
+    <div class="success-banner">Added: {{ addResult()!.firstName }} {{ addResult()!.lastName }}</div>
+  }
+</section>
+
+<section class="panel">
+  <h2 class="panel-title">Find by Last Name</h2>
+  <div class="form-row">
+    <input type="text" [(ngModel)]="searchLastName" name="searchLastName" placeholder="Last name" />
+    <button type="button" (click)="findPersons()" [disabled]="searchLoading() || !searchLastName.trim()">
+      {{ searchLoading() ? 'Searching\u2026' : 'Search' }}
+    </button>
+  </div>
+  @if (searchError()) {
+    <div class="error-banner" role="alert">{{ searchError() }}</div>
+  }
+  @if (searchResults().length > 0) {
+    <table>
+      <thead><tr><th>First Name</th><th>Last Name</th></tr></thead>
+      <tbody>
+        @for (p of searchResults(); track p.lastName + p.firstName) {
+          <tr><td>{{ p.firstName }}</td><td>{{ p.lastName }}</td></tr>
+        }
+      </tbody>
+    </table>
+  } @else if (searchDone()) {
+    <p class="loading">No persons found for &ldquo;{{ searchLastName }}&rdquo;.</p>
+  }
+</section>
+
+<section class="panel">
+  <h2 class="panel-title">Delete Person</h2>
+  <form (ngSubmit)="deletePerson()">
+    <div class="form-row">
+      <input type="text" [(ngModel)]="deleteForm.firstName" name="delFirstName" placeholder="First name" />
+      <input type="text" [(ngModel)]="deleteForm.lastName" name="delLastName" placeholder="Last name" />
+      <button type="submit" class="btn-danger"
+              [disabled]="deleteLoading() || !deleteForm.firstName.trim() || !deleteForm.lastName.trim()">
+        {{ deleteLoading() ? 'Deleting\u2026' : 'Delete' }}
+      </button>
+    </div>
+  </form>
+  @if (deleteError()) {
+    <div class="error-banner" role="alert">{{ deleteError() }}</div>
+  }
+  @if (deleteSuccess()) {
+    <div class="success-banner">Person deleted successfully.</div>
+  }
+</section>

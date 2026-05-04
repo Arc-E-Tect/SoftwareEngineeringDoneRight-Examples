@@ -22,19 +22,3 @@
     <span class="status-pill pill-unknown">UNKNOWN</span>
   }
 </section>
-
-<section class="panel">
-  <h2>Child Relationships &mdash; Smith family</h2>
-  @if (relationships().length > 0) {
-    <table>
-      <thead><tr><th>First Name</th><th>Last Name</th></tr></thead>
-      <tbody>
-        @for (person of relationships(); track person.lastName + person.firstName) {
-          <tr><td>{{ person.firstName }}</td><td>{{ person.lastName }}</td></tr>
-        }
-      </tbody>
-    </table>
-  } @else if (!loading()) {
-    <p class="loading">No child relationships found for &ldquo;Smith&rdquo;.</p>
-  }
-</section>
