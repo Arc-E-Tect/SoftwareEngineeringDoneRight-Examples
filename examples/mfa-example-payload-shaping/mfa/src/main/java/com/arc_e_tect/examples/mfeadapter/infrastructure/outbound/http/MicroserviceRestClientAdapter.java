@@ -89,7 +89,11 @@ public class MicroserviceRestClientAdapter implements MicroserviceClientPort {
         }
 
         Map<String, List<String>> responseHeaders = new java.util.LinkedHashMap<>();
-        msResponse.getHeaders().forEach(responseHeaders::put);
+        msResponse.getHeaders().forEach((name, values) -> {
+            if (isForwardableResponseHeader(name)) {
+                responseHeaders.put(name, values);
+            }
+        });
 
         return ProxiedResponse.builder()
                 .statusCode(msResponse.getStatusCode().value())
@@ -117,6 +121,19 @@ public class MicroserviceRestClientAdapter implements MicroserviceClientPort {
                  "proxy-authorization", "te", "trailer", "transfer-encoding",
                  "upgrade", "cookie", "authorization",
                  "x-api-key", "x-api-key-validated", "x-api-key-scope" -> false;
+            default -> true;
+        };
+    }
+
+    private boolean isForwardableResponseHeader(String name) {
+        if (name == null) return false;
+        // Hop-by-hop headers must not be forwarded from the upstream response.
+        // Spring Boot will apply its own Transfer-Encoding/Content-Length when
+        // writing the ResponseEntity, so forwarding these from the MS would
+        // produce duplicate headers and break chunked-encoding parsing on the client.
+        return switch (name.toLowerCase()) {
+            case "transfer-encoding", "content-length", "connection",
+                 "keep-alive", "te", "trailer", "upgrade" -> false;
             default -> true;
         };
     }
