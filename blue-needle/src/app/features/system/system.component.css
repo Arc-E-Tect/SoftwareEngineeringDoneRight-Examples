@@ -1,0 +1,5 @@
+/* System — Amber (30°)
+   Monitoring, operations, infrastructure status. */
+:host {
+  --accent-hue: 30;
+}

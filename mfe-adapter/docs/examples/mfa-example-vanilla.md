@@ -55,6 +55,8 @@ Dependencies are managed using the `libs.versions.toml` file and the Gradle plug
 
 ### APIs
 
+The project follows the API First approach.
+
 #### OpenAPI
 For the OpenAPI descriptions it is required to use Redocly.
 The OpenAPI descriptions must be componentized following the Redocly conventions.
@@ -109,11 +111,13 @@ Everything must be tested.
 
 #### MFA
 Unit testing is mandatory for the `mfa` project and must achieve 100% code coverage.
+JaCoCo is used for code coverage.
 
 #### Family Ties
 
 The `family-ties` project already has a unit test suite and it must be extended to cover the new functionality.
 It must also achieve 100% code coverage.
+JaCoCo is used for code coverage.
 
 #### Blue Needle
 The `blue-needle` project already has a unit test suite and it must be extended to cover the new functionality.
@@ -173,12 +177,66 @@ The `family-ties` project already has an architecture test suite and it should b
 In the directory `./examples/vanilla-mfa` there is a `README.adoc` file that contains the documentation for the Vanilla MFA that shows how to build and run the example.
 The README file must be written such that it can be understood by a human, but also acts as a guide for Gen AI tools.
 
-### Checklists
+There is no need to copy the documentation from the reference implementations.
+Only the README.adoc file must be provided.
 
-#### MFA-Review
-A copy of the MFA review checklist is available in the directory `./mfe-adapter/docs` and must be copied into the directory `./examples/vanilla-mfa/docs`.
-The review checklist must be filled out based on the Vanilla MFA example.
+## Additional information
 
-#### Security-Review
-A copy of the Security review checklist is available in the directory `./mfe-adapter/docs` and must be copied into the directory `./examples/vanilla-mfa/docs`.
-The security review checklist must be filled out based on the Vanilla MFA example.
+It is critical that the `./blue-needle`, `./family-ties`, and `./mfe-adapter` projects are not changed as these are and must remain the reference implementations. 
+All changes must be in the to be newly created subdirectories holding the example.
+
+Because the reference implementations are based on the IFF project from the book 'Software Engineering Done Right' there can be residual references to `iff`, these can be ignored and stripped.
+Also important, the `mfe-adapter` project has a framework of an MFA that is extendable by injecting functionality as needed. Keep the framework as much as possible intact. 
+It is set up such that when no implementations are provided to be injected, the MFA will just skip the step in its processing pipeline. 
+In other words, don't change the MFA as found in the `mfe-adapter` project, instead configure it as needed to get the required behavior. 
+The guides in its `docs` directory will be helpful.
+
+Any references to Kafka or event processing should be removed as they are not relevant to the Vanilla MFA.
+
+## Clarifications
+
+The following decisions and clarifications were captured during the planning phase.
+
+### Reference implementations must remain unchanged
+
+The `./blue-needle`, `./family-ties`, and `./mfe-adapter` projects are reference implementations and must not be modified.
+All changes must go into the newly created directories under `./examples/vanilla-mfa/`.
+
+### MFE Adapter framework: configure, do not modify
+
+The `mfe-adapter` project contains a configurable framework that is extended via dependency injection.
+When no implementation is injected for a pipeline step, the MFA skips that step automatically.
+The framework pipeline classes must remain intact in the copied MFA project; vanilla behaviour is achieved by providing dedicated vanilla-specific beans (e.g. `VanillaPreAuthFilter`, `VanillaSessionStorePort`, `VanillaSecurityConfiguration`) rather than modifying framework source files.
+
+### Health check endpoint
+
+The MS must expose a health check endpoint (Spring Boot Actuator `GET /actuator/health` is sufficient).
+The MFE must call this endpoint to display system health.
+Any existing functionality that calls an IFF-specific endpoint must be discarded; the IFF endpoint is a legacy remnant and does not exist in the vanilla MS.
+
+### JaCoCo coverage requirement
+
+Both the MS (`examples/vanilla-mfa/ms/`) and the MFA (`examples/vanilla-mfa/mfa/`) must achieve 100% JaCoCo line coverage.
+Coverage is enforced via unit tests only; integration tests or Spring context tests are not relied upon to satisfy the coverage threshold.
+
+### MFE user interface: three tabs
+
+The MFE user interface must reflect the Family Ties MS API groups.
+There must be exactly three tabs, one per API group:
+
+| Tab | Functionality |
+|---|---|
+| **Persons** | Add a person, retrieve a person by last name, delete a person by last name |
+| **Relationships** | Create a relationship between persons |
+| **System** | Display microservice health (calls `GET /actuator/health` through the MFA) |
+
+### Transport and security
+
+The vanilla example uses plain HTTP throughout (no HTTPS, no mTLS, no API key validation, no session cookies from the MFE).
+Port assignments: MFE dev server on `4200`, MFA on `8080`, MS on `8081`.
+
+### OpenAPI approach
+
+The project follows an API-first approach: OpenAPI specifications are authored first and drive both the implementation and the WireMock stubs used by the MFE smoke tests.
+
+All API requests and responses are HTTP requests and responses.
