@@ -110,6 +110,7 @@ public class OidcProviderAdapter implements IdentityProviderPort {
                 .queryParam("scope", "openid profile email")
                 .queryParam("state", state)
                 .build()
+                .encode()
                 .toUriString();
     }
 
