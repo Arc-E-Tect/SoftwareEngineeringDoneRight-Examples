@@ -1,0 +1,14 @@
+{
+  "/v1/dutch": {
+    "target": "http://mfa:8080",
+    "changeOrigin": false
+  },
+  "/auth": {
+    "target": "http://mfa:8080",
+    "changeOrigin": false
+  },
+  "/actuator": {
+    "target": "http://mfa:8080",
+    "changeOrigin": false
+  }
+}

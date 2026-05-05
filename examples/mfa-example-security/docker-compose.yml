@@ -2,10 +2,10 @@
 #
 # Topology:
 #
-#   Browser → mfe (nginx :4200) → mfa (Spring Boot :8080) → ms (Spring Boot :8081)
-#                                        ↕
-#                              wiremock-idp (:8082) – OIDC IdP (Keycloak-style)
-#                              wiremock-authz (:8083) – Authorization Service (token swap)
+#   Browser → mfe (ng serve :4200) → mfa (Spring Boot :8080) → ms (Spring Boot :8081)
+#                                           ↕
+#                               wiremock-idp (:8082) – OIDC IdP (Keycloak-style)
+#                               wiremock-authz (:8083) – Authorization Service (token swap)
 #
 # Security features demonstrated:
 #   1. OAuth2 Authorization Code flow via WireMock OIDC IdP (Keycloak-style paths)
@@ -102,14 +102,18 @@ services:
       start_period: 45s
       retries: 3
 
-  # ── Micro-Frontend (Angular via nginx) ─────────────────────────────────────
+  # ── Micro-Frontend (Angular dev server) ──────────────────────────────────────
   mfe:
-    build:
-      context: ./mfe
-      dockerfile: Dockerfile
-    image: security-mfa/mfe:latest
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./mfe:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run ng -- serve --proxy-config proxy.conf.docker.json --host 0.0.0.0 --poll 0"
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=2048
     ports:
-      - "4200:80"
+      - "4200:4200"
     depends_on:
       mfa:
         condition: service_healthy
