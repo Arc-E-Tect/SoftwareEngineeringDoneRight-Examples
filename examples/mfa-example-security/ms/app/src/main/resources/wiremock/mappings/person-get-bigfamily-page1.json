@@ -1,0 +1,22 @@
+{
+  "name": "Get BigFamily second page",
+  "request": {
+    "method": "GET",
+    "urlPath": "/v1/familyties/lastnames/BigFamily",
+    "queryParameters": {
+      "page": { "equalTo": "1" },
+      "size": { "equalTo": "10" }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": [
+      { "id": "b1", "firstName": "Lucas", "lastName": "BigFamily" },
+      { "id": "b2", "firstName": "Charlotte", "lastName": "BigFamily" },
+      { "id": "b3", "firstName": "Ethan", "lastName": "BigFamily" },
+      { "id": "b4", "firstName": "Amelia", "lastName": "BigFamily" },
+      { "id": "b5", "firstName": "James", "lastName": "BigFamily" }
+    ]
+  }
+}

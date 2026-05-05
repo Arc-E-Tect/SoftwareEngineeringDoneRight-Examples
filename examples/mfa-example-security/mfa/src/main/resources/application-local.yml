@@ -1,0 +1,39 @@
+# ── Local development overrides for security-mfa ─────────────────────────────
+# Activate with: --spring.profiles.active=security-mfa,local
+# This profile overrides Docker service URLs with localhost equivalents for
+# running the MFA outside of Docker Compose during development.
+
+server:
+  port: 8080
+  ssl:
+    enabled: false
+
+spring:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+mfe-adapter:
+  session:
+    secure: false   # Allow plain HTTP cookies in local dev
+
+  mtls:
+    enabled: false
+
+  oidc-provider:
+    issuer-uri: http://localhost:8082/realms/mfa
+    client-id: security-mfa-client
+    client-secret: security-mfa-secret
+
+  authorization-service:
+    base-url: http://localhost:8083
+
+  microservice:
+    base-url: http://localhost:8081
+
+logging:
+  level:
+    com.arc_e_tect.examples.mfeadapter: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG

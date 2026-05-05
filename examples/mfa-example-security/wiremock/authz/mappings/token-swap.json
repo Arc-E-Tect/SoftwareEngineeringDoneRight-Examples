@@ -1,0 +1,29 @@
+{
+  "mappings": [
+    {
+      "name": "Authorization Service Token Swap",
+      "request": {
+        "method": "POST",
+        "urlPath": "/authz/token/swap",
+        "headers": {
+          "Authorization": { "matches": "Bearer .+" }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "token": "inner-token-abc123",
+          "expires_in": 300,
+          "claims": {
+            "roles": ["USER", "READ_WRITE"],
+            "scope": "READ_WRITE",
+            "sub": "test-user-123"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "mappings": [
+    {
+      "name": "OIDC Token Endpoint",
+      "request": {
+        "method": "POST",
+        "urlPath": "/realms/mfa/protocol/openid-connect/token",
+        "bodyPatterns": [
+          { "contains": "grant_type=authorization_code" },
+          { "contains": "client_id=security-mfa-client" }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {
+          "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0LXVzZXItMTIzIiwiaWF0IjoxNzAwMDAwMDAwLCJleHAiOjk5OTk5OTk5OTl9.stub-signature",
+          "token_type": "Bearer",
+          "expires_in": 300,
+          "scope": "openid profile email"
+        }
+      }
+    }
+  ]
+}

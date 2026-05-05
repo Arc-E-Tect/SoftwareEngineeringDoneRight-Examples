@@ -1,0 +1,83 @@
+# Security-MFA profile – session-based authentication, API-key validation, and Authorization Service token swap.
+#
+# Topology:
+#   Browser → mfe (nginx :4200) → mfa (Spring Boot :8080) → ms (Spring Boot :8081)
+#                                        ↕
+#                              wiremock-idp (:8082) – OIDC IdP (Keycloak-style)
+#                                        ↕
+#                              wiremock-authz (:8083) – Authorization Service (token swap)
+#
+# Security features demonstrated:
+#   1. OAuth2 Authorization Code flow via a WireMock OIDC IdP
+#   2. Session management (mfa-session cookie, http-only: false for Angular access)
+#   3. Authorization Service token swap (user token → inner token with RBAC/ABAC claims)
+#   4. API-key validation via forwarded gateway headers (X-API-Key-Validated, X-API-Key-Scope)
+#
+# Differences from route-mapping profile:
+#   - session.required: true  (creates a real session, activates OidcProviderAdapter and AuthenticationController)
+#   - authorization-service.required: true  (activates AuthorizationServiceAdapter)
+#   - mTLS disabled (plain HTTP to keep topology simple)
+#   - Kafka excluded (no reference-data events in this example)
+
+server:
+  port: 8080
+  ssl:
+    enabled: false
+
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration
+  # Disable OAuth2 client registration so Spring Security does not attempt OIDC discovery.
+  # The MFA performs its own OIDC Authorization Code flow via OidcProviderAdapter.
+  security:
+    oauth2:
+      client:
+        registration:
+          oidc-provider: ~
+        provider:
+          oidc-provider:
+            issuer-uri: ~
+      resourceserver:
+        jwt:
+          issuer-uri: ~
+
+mfe-adapter:
+  session:
+    required: true
+    cookie-name: mfa-session
+    ttl-minutes: 60
+    http-only: false   # Deliberate: Angular reads document.cookie to check session presence
+    secure: false      # HTTP only in this demo environment
+    same-site: Lax
+
+  authorization-service:
+    required: true
+    base-url: http://wiremock-authz:8080
+    token-swap-path: /authz/token/swap
+
+  oidc-provider:
+    issuer-uri: http://wiremock-idp:8080/realms/mfa
+    client-id: security-mfa-client
+    client-secret: security-mfa-secret
+
+  microservice:
+    base-url: http://ms:8081
+
+  api-gateway:
+    validated-header: X-API-Key-Validated
+    validated-value: "true"
+    scope-header: X-API-Key-Scope
+
+  mtls:
+    enabled: false
+
+security-mfa:
+  routing:
+    # Strip the 'dutch' segment inserted between the API version and the resource path.
+    # /v1/dutch/familyties/... → /v1/familyties/...
+    path-pattern: "^(/v\\d+)/dutch(/.+)$"
+    path-replacement: "$1$2"

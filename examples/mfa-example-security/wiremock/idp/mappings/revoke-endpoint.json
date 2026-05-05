@@ -1,0 +1,21 @@
+{
+  "mappings": [
+    {
+      "name": "OIDC Revocation Endpoint",
+      "request": {
+        "method": "POST",
+        "urlPath": "/realms/mfa/protocol/openid-connect/revoke",
+        "bodyPatterns": [
+          { "contains": "client_id=security-mfa-client" }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "jsonBody": {}
+      }
+    }
+  ]
+}
