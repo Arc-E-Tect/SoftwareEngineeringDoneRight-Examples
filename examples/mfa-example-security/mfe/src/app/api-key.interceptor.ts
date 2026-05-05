@@ -1,6 +1,4 @@
 import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpEvent } from '@angular/common/http';
-import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
@@ -16,8 +14,6 @@ export const apiKeyInterceptor: HttpInterceptorFn = (
   req: HttpRequest<unknown>,
   next: HttpHandlerFn
 ): Observable<HttpEvent<unknown>> => {
-  const router = inject(Router);
-
   const modifiedReq = req.clone({
     setHeaders: {
       'X-API-Key-Validated': 'true',
@@ -28,7 +24,7 @@ export const apiKeyInterceptor: HttpInterceptorFn = (
   return next(modifiedReq).pipe(
     catchError(error => {
       if (error.status === 401) {
-        router.navigate(['/auth/login']);
+        window.location.href = '/auth/login';
       }
       return throwError(() => error);
     })

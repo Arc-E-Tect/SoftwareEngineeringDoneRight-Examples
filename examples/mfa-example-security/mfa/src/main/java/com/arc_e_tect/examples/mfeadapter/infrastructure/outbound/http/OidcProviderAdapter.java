@@ -97,7 +97,11 @@ public class OidcProviderAdapter implements IdentityProviderPort {
     @Override
     public String buildAuthorizationUrl(String redirectUri, String state) {
         MfeAdapterProperties.OidcProvider kc = mfeAdapterProperties.getOidcProvider();
-        String authEndpoint = kc.getIssuerUri() + "/protocol/openid-connect/auth";
+        // Use the browser-accessible public issuer URI when configured (Docker deployments
+        // where the internal service hostname is not reachable by the browser).
+        // Falls back to issuerUri for local development where both are the same host.
+        String baseUri = kc.getPublicIssuerUri() != null ? kc.getPublicIssuerUri() : kc.getIssuerUri();
+        String authEndpoint = baseUri + "/protocol/openid-connect/auth";
 
         return UriComponentsBuilder.fromUriString(authEndpoint)
                 .queryParam("response_type", "code")

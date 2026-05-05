@@ -36,11 +36,13 @@ class MfeAdapterPropertiesSupplementTest {
     void oidcProvider_settersGetters() {
         MfeAdapterProperties.OidcProvider oidc = new MfeAdapterProperties.OidcProvider();
         oidc.setIssuerUri("http://idp.example.com");
+        oidc.setPublicIssuerUri("http://localhost:8082/realms/mfa");
         oidc.setRealm("mfa-realm");
         oidc.setClientId("client-id");
         oidc.setClientSecret("secret");
 
         assertThat(oidc.getIssuerUri()).isEqualTo("http://idp.example.com");
+        assertThat(oidc.getPublicIssuerUri()).isEqualTo("http://localhost:8082/realms/mfa");
         assertThat(oidc.getRealm()).isEqualTo("mfa-realm");
         assertThat(oidc.getClientId()).isEqualTo("client-id");
         assertThat(oidc.getClientSecret()).isEqualTo("secret");

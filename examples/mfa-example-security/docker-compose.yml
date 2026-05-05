@@ -81,6 +81,8 @@ services:
       SPRING_PROFILES_ACTIVE: security-mfa
       MFE_ADAPTER_MICROSERVICE_BASE_URL: http://ms:8081
       MFE_ADAPTER_OIDC_PROVIDER_ISSUER_URI: http://wiremock-idp:8080/realms/mfa
+      # Public URL used in the browser redirect to the IdP (port 8082 is the published port for wiremock-idp)
+      MFE_ADAPTER_OIDC_PROVIDER_PUBLIC_ISSUER_URI: http://localhost:8082/realms/mfa
       MFE_ADAPTER_OIDC_PROVIDER_CLIENT_ID: security-mfa-client
       MFE_ADAPTER_OIDC_PROVIDER_CLIENT_SECRET: security-mfa-secret
       MFE_ADAPTER_AUTHZ_BASE_URL: http://wiremock-authz:8080

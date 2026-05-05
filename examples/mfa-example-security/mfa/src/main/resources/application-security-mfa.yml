@@ -61,6 +61,9 @@ mfe-adapter:
 
   oidc-provider:
     issuer-uri: http://wiremock-idp:8080/realms/mfa
+    # Browser-accessible IdP URL – overridden in Docker via MFE_ADAPTER_OIDC_PROVIDER_PUBLIC_ISSUER_URI.
+    # In local dev the issuer-uri is already the public URL so this defaults to empty (falls back to issuer-uri).
+    public-issuer-uri: ${MFE_ADAPTER_OIDC_PROVIDER_PUBLIC_ISSUER_URI:}
     client-id: security-mfa-client
     client-secret: security-mfa-secret
 

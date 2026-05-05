@@ -147,6 +147,17 @@ class OidcProviderAdapterTest {
     }
 
     @Test
+    @DisplayName("buildAuthorizationUrl – uses publicIssuerUri when set instead of issuerUri")
+    void buildAuthorizationUrl_usesPublicIssuerUri_whenSet() {
+        props.getOidcProvider().setPublicIssuerUri("http://localhost:8082/realms/mfa");
+
+        String url = adapter.buildAuthorizationUrl("http://localhost:4200/auth/callback", "state-abc");
+
+        assertThat(url).startsWith("http://localhost:8082/realms/mfa/protocol/openid-connect/auth");
+        assertThat(url).doesNotContain("wiremock-idp");
+    }
+
+    @Test
     @DisplayName("exchangeCodeForToken – JWT payload with invalid base64 → subject is 'unknown'")
     void exchangeCodeForToken_jwtInvalidBase64_subjectIsUnknown() {
         // Invalid base64 in payload part

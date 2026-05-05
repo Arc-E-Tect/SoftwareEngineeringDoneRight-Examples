@@ -110,12 +110,22 @@ public class MfeAdapterProperties {
 
     public static class OidcProvider {
         private String issuerUri;
+        /**
+         * Browser-accessible base URI for the OIDC provider, used when building
+         * the authorization redirect URL sent to the browser.  In Docker deployments
+         * this differs from {@link #issuerUri} because the internal service hostname
+         * is not reachable by the browser.  Falls back to {@link #issuerUri} when
+         * not set (local development where both URIs are the same).
+         */
+        private String publicIssuerUri;
         private String realm;
         private String clientId;
         private String clientSecret;
 
         public String getIssuerUri() { return issuerUri; }
         public void setIssuerUri(String issuerUri) { this.issuerUri = issuerUri; }
+        public String getPublicIssuerUri() { return publicIssuerUri; }
+        public void setPublicIssuerUri(String publicIssuerUri) { this.publicIssuerUri = publicIssuerUri; }
         public String getRealm() { return realm; }
         public void setRealm(String realm) { this.realm = realm; }
         public String getClientId() { return clientId; }
