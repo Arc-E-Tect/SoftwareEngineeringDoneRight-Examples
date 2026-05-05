@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RelationshipsService, PersonResponse, RelationshipResponse } from './relationships.service';
 
@@ -9,7 +9,7 @@ import { RelationshipsService, PersonResponse, RelationshipResponse } from './re
   templateUrl: './relationships.component.html',
   styleUrl: './relationships.component.css'
 })
-export class RelationshipsComponent {
+export class RelationshipsComponent implements OnInit {
   private readonly service = inject(RelationshipsService);
 
   // Add Relationship
@@ -24,6 +24,15 @@ export class RelationshipsComponent {
   protected findError = signal<string | null>(null);
   protected findLoading = signal(false);
   protected findDone = signal(false);
+
+  ngOnInit(): void {
+    // Immediately probe the relationships endpoint on load to demonstrate the 403 response.
+    // The service uses native fetch() (no apiKeyInterceptor), so the MFA rejects the
+    // request with 403 Forbidden – the point of this security example.
+    this.findForm.soort = 'parent';
+    this.findForm.achternaam = 'jansen';
+    this.findRelations();
+  }
 
   protected isAddFormValid(): boolean {
     const f = this.addForm;
