@@ -151,7 +151,7 @@ This builds and starts all five services in dependency order:
 |`wiremock-idp`   |8082          |WireMock OIDC IdP (Keycloak-style `/realms/mfa` paths)
 |`wiremock-authz` |8083          |WireMock Authorization Service (token swap)
 |`mfa`            |8080          |MFA proxy (security-mfa profile)
-|`mfe`            |4200          |Angular SPA served by nginx
+|`mfe`            |4200          |Angular SPA served by `ng serve` (Angular dev server)
 |===
 
 Open `http://localhost:4200` once all health checks pass.
@@ -218,7 +218,11 @@ The inner token is forwarded in the `Authorization` header to the microservice.
 === 4. API-Key Validation
 
 The `ApiKeyValidator` SPI implementation (registered via `SecurityMfaConfiguration`) checks for the presence and value of the `X-API-Key-Validated: true` header on every inbound request.
-The MFE's `apiKeyInterceptor` adds this header (and `X-API-Key-Scope: READ_WRITE`) to simulate an API gateway.
+The MFE's `apiKeyInterceptor` adds this header (and `X-API-Key-Scope: READ_WRITE`) to every `HttpClient` request, simulating what an API gateway would inject.
+
+The Relationships tab (`RelationshipsService`) deliberately uses the native `fetch()` API instead of `HttpClient`, which bypasses the `apiKeyInterceptor`.
+As a result, the MFA receives requests to `/v1/dutch/familyties/relationships/…` with no `X-API-Key-Validated` header and immediately returns `403 Forbidden`.
+Opening the Relaties tab fires this probe automatically so the forbidden response is visible without any manual form submission.
 
 === 5. Angular Route Guard
 
@@ -291,6 +295,8 @@ mfa-example-security/
 │               ├── OidcProviderAdapter.java                # NEW: OAuth2 code exchange + revoke
 │               └── AuthorizationServiceAdapter.java        # NEW: inner-token swap
 ├── mfe/                                 # Angular SPA
+│   ├── proxy.conf.json                  # dev-server proxy for local run (target: localhost:8080)
+│   ├── proxy.conf.docker.json           # dev-server proxy for Docker run (target: mfa:8080)
 │   └── src/app/
 │       ├── auth.guard.ts                # NEW: session-cookie guard (CanActivateFn)
 │       ├── api-key.interceptor.ts       # NEW: gateway header interceptor (HttpInterceptorFn)
