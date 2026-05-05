@@ -1,7 +1,7 @@
 # Security-MFA profile – session-based authentication, API-key validation, and Authorization Service token swap.
 #
 # Topology:
-#   Browser → mfe (nginx :4200) → mfa (Spring Boot :8080) → ms (Spring Boot :8081)
+#   Browser → mfe (ng serve :4200) → mfa (Spring Boot :8080) → ms (Spring Boot :8081)
 #                                        ↕
 #                              wiremock-idp (:8082) – OIDC IdP (Keycloak-style)
 #                                        ↕
