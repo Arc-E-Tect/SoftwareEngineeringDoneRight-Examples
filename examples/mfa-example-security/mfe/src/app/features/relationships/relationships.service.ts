@@ -1,6 +1,4 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { Injectable } from '@angular/core';
 
 export interface PersonResponse {
   voornaam: string;
@@ -22,27 +20,41 @@ export interface RelationshipResponse {
   soort?: string;
 }
 
+/**
+ * Intentionally uses the native Fetch API instead of Angular's HttpClient so that
+ * requests bypass the apiKeyInterceptor.  This demonstrates what happens when a
+ * caller reaches the MFA without a validated API-key header forwarded by the
+ * API Gateway – the MFA returns 403 Forbidden.
+ */
 @Injectable({ providedIn: 'root' })
 export class RelationshipsService {
-  private readonly http = inject(HttpClient);
-  private readonly jsonHeaders = new HttpHeaders({
-    Accept: 'application/json',
-    'Content-Type': 'application/json'
-  });
-  private readonly getHeaders = new HttpHeaders({ Accept: 'application/json' });
 
   addRelationship(rel: RelationshipRequest): Promise<RelationshipResponse> {
-    return firstValueFrom(
-      this.http.post<RelationshipResponse>('/v1/dutch/familyties/relationships', rel, { headers: this.jsonHeaders })
-    );
+    return fetch('/v1/dutch/familyties/relationships', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(rel)
+    }).then(response => {
+      if (!response.ok) {
+        return response.json().then(err => Promise.reject(err));
+      }
+      return response.json() as Promise<RelationshipResponse>;
+    });
   }
 
   findRelations(type: string, lastName: string): Promise<PersonResponse[]> {
-    return firstValueFrom(
-      this.http.get<PersonResponse[]>(
-        `/v1/dutch/familyties/relationships/${encodeURIComponent(type)}/lastnames/${encodeURIComponent(lastName)}`,
-        { headers: this.getHeaders }
-      )
-    );
+    return fetch(
+      `/v1/dutch/familyties/relationships/${encodeURIComponent(type)}/lastnames/${encodeURIComponent(lastName)}`,
+      { headers: { 'Accept': 'application/json' } }
+    ).then(response => {
+      if (!response.ok) {
+        return response.json().then(err => Promise.reject(err));
+      }
+      return response.json() as Promise<PersonResponse[]>;
+    });
   }
 }
+

@@ -64,7 +64,13 @@ public class ApiKeyValidationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/actuator/health") || path.startsWith("/actuator/info");
+        // Actuator health/info are exempt (no auth context available).
+        // OAuth2 auth endpoints (/auth/login, /auth/callback, /auth/logout) are browser
+        // redirects – they carry no API-key headers and must be exempt so the login flow
+        // can complete before any session cookie exists.
+        return path.startsWith("/actuator/health")
+                || path.startsWith("/actuator/info")
+                || path.startsWith("/auth/");
     }
 
     @Override

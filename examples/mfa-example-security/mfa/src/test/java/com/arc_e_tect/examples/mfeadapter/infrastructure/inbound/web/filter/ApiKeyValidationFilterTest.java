@@ -175,6 +175,27 @@ class ApiKeyValidationFilterTest {
         }
 
         @Test
+        @DisplayName("/auth/login is exempt – browser redirect carries no API-key header")
+        void shouldNotFilter_authLogin_returnsTrue() {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/auth/login");
+            assertThat(filter.shouldNotFilter(request)).isTrue();
+        }
+
+        @Test
+        @DisplayName("/auth/callback is exempt – IdP redirect carries no API-key header")
+        void shouldNotFilter_authCallback_returnsTrue() {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/auth/callback");
+            assertThat(filter.shouldNotFilter(request)).isTrue();
+        }
+
+        @Test
+        @DisplayName("/auth/logout is exempt – browser navigation carries no API-key header")
+        void shouldNotFilter_authLogout_returnsTrue() {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/auth/logout");
+            assertThat(filter.shouldNotFilter(request)).isTrue();
+        }
+
+        @Test
         @DisplayName("API endpoint is NOT exempt from validation")
         void shouldNotFilter_apiEndpoint_returnsFalse() {
             MockHttpServletRequest apiRequest = new MockHttpServletRequest("GET", "/api/customers");
