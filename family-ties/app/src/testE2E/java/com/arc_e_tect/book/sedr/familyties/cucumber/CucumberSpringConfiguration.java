@@ -39,13 +39,13 @@ import org.springframework.test.context.ActiveProfiles;
 public class CucumberSpringConfiguration {
     
     static {
-        System.out.println("╔══════════════════════════════════════════════════════════════════════════╗");
-        System.out.println("║                         E2E TEST CONFIGURATION                           ║");
-        System.out.println("╠══════════════════════════════════════════════════════════════════════════╣");
-        System.out.println("║  Tests connect to:                                                       ║");
-        System.out.println("║    Application: https://localhost:8443 (containerized)                   ║");
-        System.out.println("║    PostgreSQL:  localhost:5432 (containerized)                           ║");
-        System.out.println("╚══════════════════════════════════════════════════════════════════════════╝");
+        System.outbound.println("╔══════════════════════════════════════════════════════════════════════════╗");
+        System.outbound.println("║                         E2E TEST CONFIGURATION                           ║");
+        System.outbound.println("╠══════════════════════════════════════════════════════════════════════════╣");
+        System.outbound.println("║  Tests connect to:                                                       ║");
+        System.outbound.println("║    Application: https://localhost:8443 (containerized)                   ║");
+        System.outbound.println("║    PostgreSQL:  localhost:5432 (containerized)                           ║");
+        System.outbound.println("╚══════════════════════════════════════════════════════════════════════════╝");
     }
 }
 

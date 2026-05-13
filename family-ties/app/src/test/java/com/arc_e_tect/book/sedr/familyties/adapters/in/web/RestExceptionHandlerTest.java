@@ -1,6 +1,6 @@
-package com.arc_e_tect.book.sedr.familyties.adapters.in.web;
+package com.arc_e_tect.book.sedr.familyties.adapters.inbound.web;
 
-import com.arc_e_tect.book.sedr.familyties.adapters.in.web.dto.ErrorResponse;
+import com.arc_e_tect.book.sedr.familyties.adapters.inbound.web.dto.ErrorResponse;
 import com.arc_e_tect.book.sedr.familyties.application.common.BusinessException;
 import com.arc_e_tect.book.sedr.familyties.application.common.ConflictException;
 import com.arc_e_tect.book.sedr.familyties.application.common.NotFoundException;

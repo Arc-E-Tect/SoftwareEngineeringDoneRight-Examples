@@ -1,4 +1,4 @@
-package com.arc_e_tect.examples.familyties.application.port.in;
+package com.arc_e_tect.examples.familyties.application.port.inbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

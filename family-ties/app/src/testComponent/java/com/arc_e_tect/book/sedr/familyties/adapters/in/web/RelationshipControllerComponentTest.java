@@ -1,10 +1,10 @@
-package com.arc_e_tect.book.sedr.familyties.adapters.in.web;
+package com.arc_e_tect.book.sedr.familyties.adapters.inbound.web;
 
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.Person;
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.Relationship;
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.RelationshipType;
-import com.arc_e_tect.book.sedr.familyties.application.port.in.RelationshipCommandUseCase;
-import com.arc_e_tect.book.sedr.familyties.application.port.in.RelationshipQueryUseCase;
+import com.arc_e_tect.book.sedr.familyties.application.port.inbound.RelationshipCommandUseCase;
+import com.arc_e_tect.book.sedr.familyties.application.port.inbound.RelationshipQueryUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

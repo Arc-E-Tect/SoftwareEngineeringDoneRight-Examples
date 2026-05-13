@@ -1,6 +1,6 @@
-package com.arc_e_tect.examples.familyties.adapters.in.web;
+package com.arc_e_tect.examples.familyties.adapters.inbound.web;
 
-import com.arc_e_tect.examples.familyties.adapters.in.web.dto.ErrorResponse;
+import com.arc_e_tect.examples.familyties.adapters.inbound.web.dto.ErrorResponse;
 import com.arc_e_tect.examples.familyties.application.common.BusinessException;
 import com.arc_e_tect.examples.familyties.application.common.ConflictException;
 import com.arc_e_tect.examples.familyties.application.common.NotFoundException;

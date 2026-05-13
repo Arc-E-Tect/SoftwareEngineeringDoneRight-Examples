@@ -14,10 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.Person;
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.RelationshipType;
-import com.arc_e_tect.book.sedr.familyties.application.port.in.FamilyQueryUseCase;
-import com.arc_e_tect.book.sedr.familyties.application.port.in.PersonCommandUseCase;
-import com.arc_e_tect.book.sedr.familyties.application.port.in.RelationshipCommandUseCase;
-import com.arc_e_tect.book.sedr.familyties.application.port.in.RelationshipQueryUseCase;
+import com.arc_e_tect.book.sedr.familyties.application.port.inbound.FamilyQueryUseCase;
+import com.arc_e_tect.book.sedr.familyties.application.port.inbound.PersonCommandUseCase;
+import com.arc_e_tect.book.sedr.familyties.application.port.inbound.RelationshipCommandUseCase;
+import com.arc_e_tect.book.sedr.familyties.application.port.inbound.RelationshipQueryUseCase;
 
 @SpringBootTest
 @ActiveProfiles("testcomponent")
