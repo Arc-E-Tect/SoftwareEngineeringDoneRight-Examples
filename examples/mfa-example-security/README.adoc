@@ -48,25 +48,25 @@ No MFA framework code was modified; the beans are injected via the SPI.
 
 [source,text]
 ----
-Browser         MFA                        WireMock IdP
-  │                │                            │
-  ├─GET /auth/login▶│                            │
-  │                ├──redirect to /auth?code=──▶│
-  │◀─302 redirect──┤                            │
-  │                │                            │
-  ├─GET /callback──▶│                            │
-  │    ?code=xyz   ├──POST /token?code=xyz──────▶│
-  │                │◀──access_token─────────────┤
-  │                ├─swap token via AuthzService─▶ WireMock Authz
-  │                │◀─inner token (RBAC claims)──┤
-  │◀─mfa-session cookie (set-cookie header)──────┤
-  │                │                            │
-  ├─API request    │                            │
-  │ +X-API-Key-Validated: true                  │
-  │──────────────▶│                            │
-  │               ├─validate API key headers    │
-  │               ├─forward to MS (inner token) │
-  │◀──response────┤                            │
+Browser             MFA                        WireMock IdP
+  │                 │                              │
+  ├─GET /auth/login▶│                              │
+  │                 ├──redirect to /auth?code=────▶│
+  │◀─302 redirect───┤                              │
+  │                 │                              │
+  ├─GET /callback──▶│                              │
+  │    ?code=xyz    ├──POST /token?code=xyz───────▶│
+  │                 │◀──access_token───────────────┤
+  │                 ├─swap token via AuthzService─▶│ WireMock Authz
+  │                 │◀─inner token (RBAC claims)───┤
+  │◀─mfa-session cookie (set-cookie header)────────┤
+  │                 │                              │
+  ├─API request     │                              │
+  │ +X-API-Key-Validated: true                     │
+  │────────────────▶│                              │
+  │                 ├─validate API key headers     │
+  │                 ├─forward to MS (inner token)  │
+  │◀──response──────┤                              │
 ----
 
 === Session Cookie Design
