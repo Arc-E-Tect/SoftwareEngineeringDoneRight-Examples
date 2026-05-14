@@ -36,6 +36,14 @@ out/
 .env.local
 .env.*.local
 
+# Keystores and certificates (secrets — must never be tracked)
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.ks
+*.truststore
+
 # Node.js dependencies
 node_modules/
 
