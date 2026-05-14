@@ -23,8 +23,8 @@ import com.arc_e_tect.examples.familyties.application.common.NotFoundException;
 import com.arc_e_tect.examples.familyties.application.domain.model.Person;
 import com.arc_e_tect.examples.familyties.application.domain.model.Relationship;
 import com.arc_e_tect.examples.familyties.application.domain.model.RelationshipType;
-import com.arc_e_tect.examples.familyties.application.port.out.PersonRepositoryPort;
-import com.arc_e_tect.examples.familyties.application.port.out.RelationshipRepositoryPort;
+import com.arc_e_tect.examples.familyties.application.port.outbound.PersonRepositoryPort;
+import com.arc_e_tect.examples.familyties.application.port.outbound.RelationshipRepositoryPort;
 
 class FamilyTiesServiceTest {
 

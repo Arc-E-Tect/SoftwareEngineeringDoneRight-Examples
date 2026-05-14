@@ -19,8 +19,8 @@ import com.arc_e_tect.book.sedr.familyties.adapters.in.web.dto.RelationshipReque
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.Person;
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.Relationship;
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.RelationshipType;
-import com.arc_e_tect.book.sedr.familyties.application.port.in.RelationshipCommandUseCase;
-import com.arc_e_tect.book.sedr.familyties.application.port.in.RelationshipQueryUseCase;
+import com.arc_e_tect.book.sedr.familyties.application.port.inbound.RelationshipCommandUseCase;
+import com.arc_e_tect.book.sedr.familyties.application.port.inbound.RelationshipQueryUseCase;
 
 class RelationshipControllerTest {
 
