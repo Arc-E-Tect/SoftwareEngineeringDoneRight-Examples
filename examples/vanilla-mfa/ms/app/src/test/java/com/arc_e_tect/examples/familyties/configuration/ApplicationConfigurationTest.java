@@ -7,8 +7,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.arc_e_tect.examples.familyties.application.domain.service.FamilyTiesService;
-import com.arc_e_tect.examples.familyties.application.port.out.PersonRepositoryPort;
-import com.arc_e_tect.examples.familyties.application.port.out.RelationshipRepositoryPort;
+import com.arc_e_tect.examples.familyties.application.port.outbound.PersonRepositoryPort;
+import com.arc_e_tect.examples.familyties.application.port.outbound.RelationshipRepositoryPort;
 
 class ApplicationConfigurationTest {
 

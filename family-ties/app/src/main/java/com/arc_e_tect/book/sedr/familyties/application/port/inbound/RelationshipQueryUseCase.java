@@ -1,4 +1,4 @@
-package com.arc_e_tect.book.sedr.familyties.application.port.in;
+package com.arc_e_tect.book.sedr.familyties.application.port.inbound;
 
 import java.util.List;
 

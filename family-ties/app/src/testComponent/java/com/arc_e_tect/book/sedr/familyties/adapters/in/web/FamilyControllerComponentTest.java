@@ -19,8 +19,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import com.arc_e_tect.book.sedr.familyties.application.port.in.FamilyQueryUseCase;
-import com.arc_e_tect.book.sedr.familyties.application.port.in.PersonCommandUseCase;
+import com.arc_e_tect.book.sedr.familyties.application.port.inbound.FamilyQueryUseCase;
+import com.arc_e_tect.book.sedr.familyties.application.port.inbound.PersonCommandUseCase;
 
 @ExtendWith(MockitoExtension.class)
 @ActiveProfiles("testcomponent")

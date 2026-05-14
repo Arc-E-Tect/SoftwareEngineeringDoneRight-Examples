@@ -1,6 +1,6 @@
-package com.arc_e_tect.examples.familyties.application.port.in;
+package com.arc_e_tect.book.sedr.familyties.application.port.inbound;
 
-import com.arc_e_tect.examples.familyties.application.domain.model.Person;
+import com.arc_e_tect.book.sedr.familyties.application.domain.model.Person;
 
 public interface PersonCommandUseCase {
     Person addPerson(String firstName, String lastName);

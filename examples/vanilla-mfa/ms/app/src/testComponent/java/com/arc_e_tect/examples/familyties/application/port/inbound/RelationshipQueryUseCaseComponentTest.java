@@ -1,4 +1,4 @@
-package com.arc_e_tect.book.sedr.familyties.application.port.in;
+package com.arc_e_tect.examples.familyties.application.port.inbound;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
@@ -12,8 +12,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.arc_e_tect.book.sedr.familyties.application.domain.model.Person;
-import com.arc_e_tect.book.sedr.familyties.application.domain.model.RelationshipType;
+import com.arc_e_tect.examples.familyties.application.domain.model.Person;
+import com.arc_e_tect.examples.familyties.application.domain.model.RelationshipType;
 
 @SpringBootTest
 @ActiveProfiles("testcomponent")

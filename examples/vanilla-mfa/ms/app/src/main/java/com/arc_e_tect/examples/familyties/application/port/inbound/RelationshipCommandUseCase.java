@@ -1,4 +1,4 @@
-package com.arc_e_tect.examples.familyties.application.port.in;
+package com.arc_e_tect.examples.familyties.application.port.inbound;
 
 import com.arc_e_tect.examples.familyties.application.domain.model.Relationship;
 import com.arc_e_tect.examples.familyties.application.domain.model.RelationshipType;
