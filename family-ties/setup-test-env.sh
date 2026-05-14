@@ -200,3 +200,11 @@ if [ "$SSL_PASSWORD_FROM_ENV" = false ] || [ "$POSTGRES_PASSWORD_FROM_ENV" = fal
     fi
 fi
 echo "⚠️  The .env files and keystore.p12 files are gitignored and will NOT be committed."
+
+echo ""
+echo "=== Activating Git hooks ==="
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+git -C "$REPO_ROOT" config core.hooksPath .githooks
+chmod +x "$REPO_ROOT/.githooks/pre-commit" "$REPO_ROOT/.githooks/pre-push"
+echo "✅ Git hooks activated (pre-commit, pre-push)"
+echo "   Keystores, secrets, and workflow files are now protected."
