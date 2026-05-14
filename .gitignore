@@ -12,6 +12,7 @@
 
 # Package Files #
 *.jar
+!**/gradle/wrapper/gradle-wrapper.jar
 *.war
 *.nar
 *.ear
@@ -61,3 +62,5 @@ node_modules/
 mfe-adapter/docs/output/
 /mfe-adapter/docs/whitepaper-micro-frontend-adapter.adoc
 /tmp/
+tmp/
+worktrees/
