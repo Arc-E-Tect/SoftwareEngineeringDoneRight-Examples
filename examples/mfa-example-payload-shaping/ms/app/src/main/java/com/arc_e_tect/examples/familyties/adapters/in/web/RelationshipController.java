@@ -5,8 +5,8 @@ import com.arc_e_tect.examples.familyties.adapters.in.web.dto.RelationshipReques
 import com.arc_e_tect.examples.familyties.application.domain.model.Person;
 import com.arc_e_tect.examples.familyties.application.domain.model.Relationship;
 import com.arc_e_tect.examples.familyties.application.domain.model.RelationshipType;
-import com.arc_e_tect.examples.familyties.application.port.in.RelationshipCommandUseCase;
-import com.arc_e_tect.examples.familyties.application.port.in.RelationshipQueryUseCase;
+import com.arc_e_tect.examples.familyties.application.port.inbound.RelationshipCommandUseCase;
+import com.arc_e_tect.examples.familyties.application.port.inbound.RelationshipQueryUseCase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import org.springframework.http.HttpStatus;

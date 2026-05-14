@@ -4,8 +4,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.arc_e_tect.book.sedr.familyties.application.domain.service.FamilyTiesService;
-import com.arc_e_tect.book.sedr.familyties.application.port.out.PersonRepositoryPort;
-import com.arc_e_tect.book.sedr.familyties.application.port.out.RelationshipRepositoryPort;
+import com.arc_e_tect.book.sedr.familyties.application.port.outbound.PersonRepositoryPort;
+import com.arc_e_tect.book.sedr.familyties.application.port.outbound.RelationshipRepositoryPort;
 
 @Configuration
 public class ApplicationConfiguration {
