@@ -11,6 +11,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/familyties
       SPRING_DATASOURCE_USERNAME: family
       SPRING_DATASOURCE_PASSWORD: ${SSL_KEYSTORE_PASSWORD}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       SSL_KEYSTORE_PASSWORD: ${SSL_KEYSTORE_PASSWORD}
     ports:
       - "8080:8080"
