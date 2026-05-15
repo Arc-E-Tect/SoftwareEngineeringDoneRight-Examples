@@ -220,7 +220,7 @@ Under `spring.profiles.active=payload-shaper` the following beans are excluded
 (same as the vanilla profile):
 
 * `OidcProviderAdapter` — no OIDC discovery, no JWT validation
-* `AuthorizationServiceAdapter` — no IAS token swap
+* `AuthorizationServiceAdapter` — no SecService token swap
 * `AuthenticationApplicationService` / `AuthenticationController` — no login/logout endpoints
 * `ReferenceDataEventConsumer` / `KafkaConfiguration` — no Kafka
 * `WebClientConfiguration` — replaced by `PayloadShaperWebClientConfiguration` (plain HTTP `WebClient`)

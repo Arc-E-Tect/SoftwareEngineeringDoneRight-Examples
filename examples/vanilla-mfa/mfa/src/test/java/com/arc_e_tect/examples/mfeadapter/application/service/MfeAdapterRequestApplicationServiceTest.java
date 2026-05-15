@@ -208,8 +208,8 @@ class MfeAdapterRequestApplicationServiceTest {
     // -----------------------------------------------------------------
 
     @Test
-    @DisplayName("authorization-service.required=false → IAS call skipped, request still forwarded")
-    void handle_iasNotRequired_skipsInnerTokenSwap() {
+    @DisplayName("authorization-service.required=false → SecService call skipped, request still forwarded")
+    void handle_secServiceNotRequired_skipsInnerTokenSwap() {
         MfeAdapterProperties props = new MfeAdapterProperties();
         props.getAuthorizationService().setRequired(false);
 

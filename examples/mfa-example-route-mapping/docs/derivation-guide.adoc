@@ -1,0 +1,241 @@
+= Route-Mapping MFA Example — Derivation Guide
+:toc: left
+:toclevels: 3
+:icons: font
+:source-highlighter: rouge
+:doctype: article
+
+This guide explains how the _route-mapping_ MFA example was derived from the
+_payload-shaping_ MFA example and what each change achieves.
+It is intended as a companion to the source code for readers who want to
+understand the mechanics of URL path-segment rewriting in the MFA framework.
+
+== Overview
+
+The payload-shaping example demonstrates Dutch ↔ English field-name translation:
+the MFE sends Dutch field names, the MFA translates them to English before
+forwarding to the microservice, and translates English response fields back to
+Dutch before returning them to the MFE.
+The URL paths used by the MFE and the MS are identical in that example.
+
+The route-mapping variant extends it with _path-segment rewriting_: the MFE
+now calls `/v1/dutch/familyties/…` (a `dutch` segment inserted after the
+API version prefix) while the MS continues to expose plain `/v1/familyties/…`
+paths.
+The MFA strips the `dutch` segment before forwarding.
+
+The relationship between the two examples is strictly _additive_:
+no MFA framework code was modified.
+Two new classes were registered under the `route-mapping` Spring profile, and
+the MFE service layer and proxy configuration were updated to use the new paths.
+
+== Field-Name Mapping
+
+The following table shows the Dutch ↔ English field-name mapping applied
+by the transformer beans.
+
+[cols="1,1", options="header"]
+|===
+|Dutch (MFE / MFA surface)
+|English (MS surface)
+
+|`voornaam`
+|`firstName`
+
+|`achternaam`
+|`lastName`
+
+|`vanVoornaam`
+|`fromFirstName`
+
+|`vanAchternaam`
+|`fromLastName`
+
+|`naarVoornaam`
+|`toFirstName`
+
+|`naarAchternaam`
+|`toLastName`
+
+|`soort`
+|`type`
+
+|`vanPersoon`
+|`fromPerson`
+
+|`naarPersoon`
+|`toPerson`
+|===
+
+Field _values_ (e.g. the relationship type value `parent`) pass through
+unchanged; only key names are translated.
+
+== Changes from the Payload-Shaping Example
+
+=== Spring Profile
+
+All route-mapping beans are guarded by `@Profile("route-mapping")`.
+Beans that must _not_ activate under this profile (Kafka, OIDC, reference-data
+consumers, etc.) were annotated with
+`@Profile("!payload-shaper && !route-mapping")` so they remain excluded under
+both example profiles.
+
+=== New Classes
+
+==== `RouteMappingProperties`
+
+Located in `mfa/src/main/java/.../infrastructure/config/`.
+
+A `@ConfigurationProperties(prefix = "route-mapping")` class that carries
+the regex routing configuration from `application-route-mapping.yml`.
+It is example-scoped (it does not extend the library's `MfeAdapterProperties`)
+so the MFA framework remains unchanged.
+
+Nested `Routing` class fields:
+
+* `pathPattern` — the Java regular expression to match against the incoming
+  request path; captured groups are used in the replacement.
+  Default (from YAML): `^(/v\d+)/dutch(/.+)$`
+* `pathReplacement` — the replacement string using back-references to captured
+  groups.  Default: `$1$2`
+
+Enabled via `@EnableConfigurationProperties(RouteMappingProperties.class)` on
+`RouteMappingConfiguration`.
+
+==== `RegexRoutingStrategy`
+
+Located in `mfa/src/main/java/.../domain/spi/`.
+
+Implements `RoutingStrategy`.
+At construction time the strategy compiles `pathPattern` into a
+`java.util.regex.Pattern` (fail-fast on bad regex).
+On each request the strategy applies `Pattern.matcher(path).replaceFirst(replacement)`.
+If the pattern does not match the path is returned unchanged, so non-versioned
+paths (e.g. `/actuator/health`) pass through without modification.
+
+=== Updated: `RouteMappingConfiguration`
+
+The existing `RouteMappingConfiguration` was extended with:
+
+* `@EnableConfigurationProperties(RouteMappingProperties.class)` on the class.
+* A new `routingStrategy(RouteMappingProperties)` `@Bean` method that returns
+  a `RegexRoutingStrategy` instance.
+
+The two transformer bean methods (`dutchToEnglishRequestTransformer`,
+`englishToDutchResponseTransformer`) were carried over unchanged.
+
+=== Updated: `application-route-mapping.yml`
+
+A new `route-mapping.routing` block was added:
+
+[source,yaml]
+----
+route-mapping:
+  routing:
+    path-pattern: "^(/v\\d+)/dutch(/.+)$"
+    path-replacement: "$1$2"
+----
+
+The `server.servlet.context-path` property (to prefix the entire MFA servlet
+context with `/dutch`) was _not_ used because it would have affected the base
+URL of all requests, not only the forwarded path.
+The regex approach operates on the forwarded path only and leaves the base URL
+untouched.
+
+=== Updated: MFE Service Layer
+
+Four Angular service files in `mfe/src/app/features/` had their HTTP call
+paths updated from `/v1/familyties/…` to `/v1/dutch/familyties/…`:
+
+* `persons/persons.service.ts` — POST, GET, and DELETE paths.
+* `relationships/relationships.service.ts` — POST and GET paths.
+* `social-network/social-network.service.ts` — GET path.
+* `relationship/relationship.service.ts` — GET path.
+
+Field interfaces, component templates, and the application title are unchanged.
+
+=== Updated: `mfe/proxy.conf.json`
+
+The Angular development-server proxy configuration was simplified:
+
+[source,json]
+----
+{
+  "/v1/dutch": { "target": "http://localhost:8080", "changeOrigin": true },
+  "/actuator": { "target": "http://localhost:8080", "changeOrigin": true }
+}
+----
+
+The previous entries for `/api`, `/relationship`, and `/social-network` (stale
+residuals from the payload-shaping copy) were removed.
+
+=== Updated: OpenAPI (`openapi/mfa-api.yaml`)
+
+All path entries in the MFA OpenAPI document were updated to include the
+`dutch` segment:
+
+* `/v1/familyties` → `/v1/dutch/familyties`
+* `/v1/familyties/lastnames/{lastName}` → `/v1/dutch/familyties/lastnames/{lastName}`
+* `/v1/familyties/relationships` → `/v1/dutch/familyties/relationships`
+* `/v1/familyties/relationships/{type}/lastnames/{lastName}` →
+  `/v1/dutch/familyties/relationships/{type}/lastnames/{lastName}`
+
+The MS OpenAPI document (`openapi/ms-api.yaml`) is unchanged.
+
+=== Unchanged: Microservice
+
+The MS module is an identical copy of the payload-shaping MS.
+No changes were required; the routing strategy and transformers together
+ensure the MS always receives requests on the plain `/v1/familyties/…` paths
+and always exchanges English field names.
+
+=== Unchanged: Transformer Beans
+
+`DutchToEnglishRequestTransformer` and `EnglishToDutchResponseTransformer`
+are byte-for-byte identical to the payload-shaping example.
+The route-mapping example inherits full Dutch ↔ English translation with no
+additional effort.
+
+== Design Decisions
+
+=== Why regex-based routing instead of simple prefix stripping?
+
+The MFE path format is `/v1/dutch/familyties`—the `dutch` segment sits
+_between_ the API version prefix and the resource name, not at the root.
+Simple prefix stripping (the `PrefixStrippingRoutingStrategy`) only removes a
+leading segment such as `/dutch/v1/familyties → /v1/familyties`; it cannot
+handle an infix segment.
+Regex with two captured groups cleanly strips the infix regardless of which
+version number appears.
+
+=== Why a separate `RouteMappingProperties` class?
+
+The MFA framework provides `MfeAdapterProperties` for its own configuration.
+Extending it would couple the example to the library's internal model.
+A standalone `@ConfigurationProperties` class owned by the example keeps the
+library unchanged and makes the routing configuration self-contained and
+documentable independently.
+
+=== Why is the regex compiled at construction time?
+
+Compiling a `Pattern` is expensive.
+Constructing the `RegexRoutingStrategy` once at application startup (Spring
+bean initialisation) and reusing the compiled `Pattern` per request avoids
+repeated compilation overhead.
+A malformed pattern will throw at startup rather than silently failing on the
+first request.
+
+== Running the Example
+
+See the `README.adoc` at the root of this example for Docker Compose
+instructions.
+The key difference from the payload-shaping example is the active Spring
+profile:
+
+[source,yaml]
+----
+SPRING_PROFILES_ACTIVE: route-mapping
+----
+
+This activates `application-route-mapping.yml` and registers the
+`RegexRoutingStrategy` bean alongside the two transformer beans.

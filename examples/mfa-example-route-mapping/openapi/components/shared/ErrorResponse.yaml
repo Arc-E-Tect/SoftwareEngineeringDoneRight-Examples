@@ -1,0 +1,14 @@
+type: object
+properties:
+  status:
+    type: integer
+    example: 404
+  error:
+    type: string
+    example: Not Found
+  message:
+    type: string
+    example: No persons found with lastName Smith
+  path:
+    type: string
+    example: /v1/familyties/lastnames/Smith

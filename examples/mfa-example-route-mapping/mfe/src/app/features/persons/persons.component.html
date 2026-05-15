@@ -1,0 +1,63 @@
+<section class="panel">
+  <h2 class="panel-title">Persoon toevoegen</h2>
+  <form (ngSubmit)="addPerson()">
+    <div class="form-row">
+      <input type="text" [(ngModel)]="addForm.voornaam" name="addVoornaam" placeholder="Voornaam" />
+      <input type="text" [(ngModel)]="addForm.achternaam" name="addAchternaam" placeholder="Achternaam" />
+      <button type="submit" [disabled]="addLoading() || !addForm.voornaam.trim() || !addForm.achternaam.trim()">
+        {{ addLoading() ? 'Toevoegen\u2026' : 'Toevoegen' }}
+      </button>
+    </div>
+  </form>
+  @if (addError()) {
+    <div class="error-banner" role="alert">{{ addError() }}</div>
+  }
+  @if (addResult()) {
+    <div class="success-banner">Toegevoegd: {{ addResult()!.voornaam }} {{ addResult()!.achternaam }}</div>
+  }
+</section>
+
+<section class="panel">
+  <h2 class="panel-title">Zoek op achternaam</h2>
+  <div class="form-row">
+    <input type="text" [(ngModel)]="searchAchternaam" name="searchAchternaam" placeholder="Achternaam" />
+    <button type="button" (click)="findPersons()" [disabled]="searchLoading() || !searchAchternaam.trim()">
+      {{ searchLoading() ? 'Zoeken\u2026' : 'Zoeken' }}
+    </button>
+  </div>
+  @if (searchError()) {
+    <div class="error-banner" role="alert">{{ searchError() }}</div>
+  }
+  @if (searchResults().length > 0) {
+    <table>
+      <thead><tr><th>Voornaam</th><th>Achternaam</th></tr></thead>
+      <tbody>
+        @for (p of searchResults(); track p.achternaam + p.voornaam) {
+          <tr><td>{{ p.voornaam }}</td><td>{{ p.achternaam }}</td></tr>
+        }
+      </tbody>
+    </table>
+  } @else if (searchDone()) {
+    <p class="loading">Geen personen gevonden voor &ldquo;{{ searchAchternaam }}&rdquo;.</p>
+  }
+</section>
+
+<section class="panel">
+  <h2 class="panel-title">Persoon verwijderen</h2>
+  <form (ngSubmit)="deletePerson()">
+    <div class="form-row">
+      <input type="text" [(ngModel)]="deleteForm.voornaam" name="delVoornaam" placeholder="Voornaam" />
+      <input type="text" [(ngModel)]="deleteForm.achternaam" name="delAchternaam" placeholder="Achternaam" />
+      <button type="submit" class="btn-danger"
+              [disabled]="deleteLoading() || !deleteForm.voornaam.trim() || !deleteForm.achternaam.trim()">
+        {{ deleteLoading() ? 'Verwijderen\u2026' : 'Verwijderen' }}
+      </button>
+    </div>
+  </form>
+  @if (deleteError()) {
+    <div class="error-banner" role="alert">{{ deleteError() }}</div>
+  }
+  @if (deleteSuccess()) {
+    <div class="success-banner">Persoon succesvol verwijderd.</div>
+  }
+</section>

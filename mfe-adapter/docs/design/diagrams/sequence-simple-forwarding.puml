@@ -12,7 +12,7 @@ participant "ApiKeyValidationFilter" as Filter
 participant "MfaProxyController" as Ctrl
 participant "MfaRequestApplicationService" as Svc
 participant "SessionStoreAdapter\n(H2)" as Session
-participant "IasAdapter\n(IAS)" as IAS
+participant "SecServiceAdapter\n(SecService)" as SecSvc
 participant "MicroserviceRestClientAdapter\n(MS)" as MS
 
 User -> MFE : user action
@@ -35,12 +35,12 @@ else header valid
     else session valid
         Session --> Svc : Session{userToken}
 
-        Svc -> IAS : swapForInnerToken(userToken)
-        alt IAS returns error
-            IAS --> Svc : error
+        Svc -> SecSvc : swapForInnerToken(userToken)
+        alt SecService returns error
+            SecSvc --> Svc : error
             Svc --> MFE : HTTP 502 Bad Gateway
         else inner token received
-            IAS --> Svc : innerToken
+            SecSvc --> Svc : innerToken
 
             note over Svc
                 No RequestValidator,

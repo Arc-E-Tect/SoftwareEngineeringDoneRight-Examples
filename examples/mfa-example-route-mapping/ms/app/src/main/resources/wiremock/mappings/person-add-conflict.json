@@ -1,0 +1,18 @@
+{
+  "priority": 1,
+  "name": "Add person conflict when exists",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/familyties",
+    "bodyPatterns": [
+      { "matchesJsonPath": "$[?(@.firstName == 'Jane' && (@.lastName == 'Conflict' || @.lastName == 'Doe'))]" }
+    ]
+  },
+  "response": {
+    "status": 409,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "message": "Person already exists"
+    }
+  }
+}

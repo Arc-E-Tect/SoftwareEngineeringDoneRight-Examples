@@ -12,7 +12,7 @@ participant "MfaProxyController" as Ctrl
 participant "ApiKeyValidationFilter" as Filter
 participant "MfaRequestApplicationService" as Svc
 participant "SessionStoreAdapter\n(H2)" as Session
-participant "IasAdapter\n(IAS)" as IAS
+participant "SecServiceAdapter\n(SecService)" as SecSvc
 participant "SPI (Validator /\nTransformer)" as SPI
 participant "MicroserviceRestClientAdapter\n(MS)" as MS
 
@@ -37,8 +37,8 @@ else header valid
         AG --> MFE : 401 → redirect to login
     else session valid
         Session --> Svc : Session{userToken}
-        Svc -> IAS : swapForInnerToken(userToken)
-        IAS --> Svc : InnerToken{claims}
+        Svc -> SecSvc : swapForInnerToken(userToken)
+        SecSvc --> Svc : InnerToken{claims}
         Svc -> SPI : validate(ProxiedRequest)
         alt validation fails
             SPI --> Svc : ValidationResult.failure(errors)

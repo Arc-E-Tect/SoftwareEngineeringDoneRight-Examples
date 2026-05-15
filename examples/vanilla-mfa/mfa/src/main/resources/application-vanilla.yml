@@ -1,4 +1,4 @@
-# Vanilla profile – no auth, no SSL, no Kafka, no IAS token-swap.
+# Vanilla profile – no auth, no SSL, no Kafka, no SecService token-swap.
 # The MFA acts as a plain pass-through HTTP proxy to the microservice.
 
 server:

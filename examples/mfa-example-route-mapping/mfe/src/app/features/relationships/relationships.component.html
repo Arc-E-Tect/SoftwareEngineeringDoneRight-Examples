@@ -1,0 +1,62 @@
+<section class="panel">
+  <h2 class="panel-title">Relatie toevoegen</h2>
+  <form (ngSubmit)="addRelationship()">
+    <div class="form-row">
+      <input type="text" [(ngModel)]="addForm.vanVoornaam" name="vanVoornaam" placeholder="Van voornaam" />
+      <input type="text" [(ngModel)]="addForm.vanAchternaam" name="vanAchternaam" placeholder="Van achternaam" />
+    </div>
+    <div class="form-row">
+      <input type="text" [(ngModel)]="addForm.naarVoornaam" name="naarVoornaam" placeholder="Naar voornaam" />
+      <input type="text" [(ngModel)]="addForm.naarAchternaam" name="naarAchternaam" placeholder="Naar achternaam" />
+    </div>
+    <div class="form-row">
+      <input type="text" [(ngModel)]="addForm.soort" name="relSoort"
+             placeholder="Soort relatie (bijv. parent, child, sibling)" />
+      <button type="submit" [disabled]="addLoading() || !isAddFormValid()">
+        {{ addLoading() ? 'Toevoegen\u2026' : 'Relatie toevoegen' }}
+      </button>
+    </div>
+  </form>
+  @if (addError()) {
+    <div class="error-banner" role="alert">{{ addError() }}</div>
+  }
+  @if (addResult()) {
+    <div class="success-banner">
+      Relatie toegevoegd:
+      {{ addResult()!.vanPersoon?.voornaam }} {{ addResult()!.vanPersoon?.achternaam }}
+      &rarr; <em>{{ addResult()!.soort }}</em>
+      &rarr; {{ addResult()!.naarPersoon?.voornaam }} {{ addResult()!.naarPersoon?.achternaam }}
+    </div>
+  }
+</section>
+
+<section class="panel">
+  <h2 class="panel-title">Zoek relaties</h2>
+  <div class="form-row">
+    <input type="text" [(ngModel)]="findForm.soort" name="findSoort"
+           placeholder="Soort (bijv. child)" />
+    <input type="text" [(ngModel)]="findForm.achternaam" name="findAchternaam"
+           placeholder="Achternaam" />
+    <button type="button" (click)="findRelations()"
+            [disabled]="findLoading() || !findForm.soort.trim() || !findForm.achternaam.trim()">
+      {{ findLoading() ? 'Zoeken\u2026' : 'Zoeken' }}
+    </button>
+  </div>
+  @if (findError()) {
+    <div class="error-banner" role="alert">{{ findError() }}</div>
+  }
+  @if (findResults().length > 0) {
+    <table>
+      <thead><tr><th>Voornaam</th><th>Achternaam</th></tr></thead>
+      <tbody>
+        @for (p of findResults(); track p.achternaam + p.voornaam) {
+          <tr><td>{{ p.voornaam }}</td><td>{{ p.achternaam }}</td></tr>
+        }
+      </tbody>
+    </table>
+  } @else if (findDone()) {
+    <p class="loading">
+      Geen &ldquo;{{ findForm.soort }}&rdquo; relaties gevonden voor achternaam &ldquo;{{ findForm.achternaam }}&rdquo;.
+    </p>
+  }
+</section>

@@ -1,0 +1,17 @@
+type: object
+required:
+  - voornaam
+  - achternaam
+properties:
+  voornaam:
+    type: string
+    pattern: "^[a-zA-Z0-9\\s'-]+$"
+    minLength: 1
+    maxLength: 100
+    example: Jan
+  achternaam:
+    type: string
+    pattern: "^[a-zA-Z0-9\\s'-]+$"
+    minLength: 1
+    maxLength: 100
+    example: Smit

@@ -185,4 +185,25 @@ class MicroserviceRestClientAdapterTest {
 
         assertThat(response.getStatusCode()).isEqualTo(200);
     }
+
+    @Test
+    @DisplayName("forward() – hop-by-hop response headers are not forwarded")
+    void forward_hopByHopResponseHeaders_areNotForwarded() {
+        // Arrange: MS returns hop-by-hop headers that must be stripped
+        when(responseSpec.toEntity(byte[].class)).thenReturn(Mono.just(
+                ResponseEntity.ok()
+                        .header("Transfer-Encoding", "chunked")
+                        .header("Content-Length", "8")
+                        .header("Connection", "keep-alive")
+                        .header("X-Custom-Header", "keep-me")
+                        .body(new byte[0])));
+
+        ProxiedResponse response = adapter.forward(
+                ProxiedRequest.builder().method("GET").path("/v1/persons").build(), null);
+
+        assertThat(response.getHeaders()).doesNotContainKey("Transfer-Encoding");
+        assertThat(response.getHeaders()).doesNotContainKey("Content-Length");
+        assertThat(response.getHeaders()).doesNotContainKey("Connection");
+        assertThat(response.getHeaders()).containsKey("X-Custom-Header");
+    }
 }

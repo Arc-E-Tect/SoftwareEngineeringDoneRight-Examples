@@ -24,11 +24,11 @@ dependencies {
     // Web
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
-    // Security & OAuth2 / OIDC (KeyCloak integration)
+    // Security & OAuth2 / OIDC (Identity Provider (IdP) integration)
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 
-    // Reactive HTTP client (WebClient) used for outbound calls to MS / IAS / KeyCloak
+    // Reactive HTTP client (WebClient) used for outbound calls to MS / SecService / Identity Provider (IdP)
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
     // Persistence – H2 in-memory store for sessions and reference-data cache

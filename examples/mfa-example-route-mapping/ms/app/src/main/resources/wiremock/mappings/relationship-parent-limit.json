@@ -1,0 +1,16 @@
+{
+  "priority": 1,
+  "name": "Parent limit reached",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/familyties/relationships",
+    "bodyPatterns": [
+      { "matchesJsonPath": "$[?(@.fromFirstName == 'Thomas' && @.fromLastName == 'Smith' && @.toFirstName == 'Lily' && @.toLastName == 'Smith' && @.type == 'parent')]" }
+    ]
+  },
+  "response": {
+    "status": 409,
+    "body": "A person can have at most two parents",
+    "headers": { "Content-Type": "text/plain" }
+  }
+}

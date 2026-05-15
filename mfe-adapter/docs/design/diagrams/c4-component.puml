@@ -8,8 +8,8 @@ title MFA Template — C4 Component (MFA Spring Boot App)
 System_Ext(ag, "API Gateway")
 System_Ext(kafka, "Kafka")
 System_Ext(ms, "Microservice")
-System_Ext(keycloak, "KeyCloak")
-System_Ext(ias, "IAS")
+System_Ext(idp, "Identity Provider (IdP)")
+System_Ext(secservice, "SecService")
 ContainerDb(h2, "H2 In-Memory DB")
 
 Container_Boundary(mfaApp, "MFA Spring Boot App") {
@@ -30,8 +30,8 @@ Container_Boundary(mfaApp, "MFA Spring Boot App") {
 
     ' ── Infrastructure – Outbound ────────────────────────────────────────
     Component(msAdapter, "MicroserviceRestClientAdapter", "WebClient Adapter", "Forwards proxied requests to the MS with mTLS and inner-token Bearer.")
-    Component(iasAdapter, "IasAdapter", "WebClient Adapter", "Calls IAS to swap user token for inner token.")
-    Component(kcAdapter, "KeyCloakAdapter", "WebClient Adapter", "Exchanges authorization code, revokes tokens via KeyCloak OIDC.")
+    Component(secServiceAdapter, "SecServiceAdapter", "WebClient Adapter", "Calls SecService to swap user token for inner token.")
+    Component(idpAdapter, "IdPAdapter", "WebClient Adapter", "Exchanges authorization code, revokes tokens via Identity Provider (IdP) OIDC.")
     Component(sessionAdapter, "SessionStoreAdapter", "JPA Adapter", "Saves/retrieves sessions in H2; runs scheduled expiry cleanup.")
     Component(refDataAdapter, "ReferenceDataStoreAdapter", "JPA Adapter", "Persists reference-data entries in H2.")
 }
@@ -52,16 +52,16 @@ Rel(handleSvc, spi, "validates & transforms")
 
 ' Service → outbound adapters
 Rel(handleSvc, msAdapter, "forward(request, innerToken)")
-Rel(handleSvc, iasAdapter, "swapForInnerToken(userToken)")
+Rel(handleSvc, secServiceAdapter, "swapForInnerToken(userToken)")
 Rel(handleSvc, sessionAdapter, "findById / save")
-Rel(authSvc, kcAdapter, "exchangeCode / revokeToken")
+Rel(authSvc, idpAdapter, "exchangeCode / revokeToken")
 Rel(authSvc, sessionAdapter, "save / deleteById")
 Rel(refDataSvc, refDataAdapter, "upsert / delete")
 
 ' Outbound → external
 Rel(msAdapter, ms, "REST mTLS", "HTTPS")
-Rel(iasAdapter, ias, "token swap", "HTTPS mTLS")
-Rel(kcAdapter, keycloak, "OIDC endpoints", "HTTPS")
+Rel(secServiceAdapter, secservice, "token swap", "HTTPS mTLS")
+Rel(idpAdapter, idp, "OIDC endpoints", "HTTPS")
 Rel(sessionAdapter, h2, "JPA", "JDBC")
 Rel(refDataAdapter, h2, "JPA", "JDBC")
 @enduml
