@@ -100,6 +100,30 @@ To stop and remove volumes:
 docker compose down -v
 ----
 
+=== Running offline (pre-built artifacts)
+
+Use `docker-compose.prebuilt.yml` when Docker cannot reach external registries or package repositories during the build (e.g., behind a corporate firewall).
+Pre-build all three services locally, then Docker copies the artifacts instead of running Gradle or npm.
+
+[source,bash]
+----
+cd examples/mfa-example-payload-shaping
+
+# Build ms
+cd ms  && ./gradlew :app:bootJar -x test --no-daemon && cd ..
+
+# Build mfa
+cd mfa && ./gradlew bootJar -x test --no-daemon       && cd ..
+
+# Build mfe
+cd mfe && npm ci && npm run build                      && cd ..
+
+# Start the stack using pre-built artifacts
+docker compose -f docker-compose.prebuilt.yml up --build
+----
+
+Docker will abort immediately with a `COPY` error if an artifact is missing -- this is intentional (fail fast).
+
 == Running Tests
 
 === Microservice (100 % JaCoCo line coverage)

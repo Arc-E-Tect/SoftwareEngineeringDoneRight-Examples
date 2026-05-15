@@ -188,6 +188,16 @@ See [app/src/main/resources/openapi_familyties.yaml](app/src/main/resources/open
   - `stopContainers = true` - stops containers after tests complete
   - `removeContainers = true` - removes stopped containers
   - Individual test tasks (e.g., `testContractWiremock`, `testSystemWiremock`) automatically clean up their containers
+- `docker-compose.prebuilt.yml` is provided for **offline or firewalled environments** where Docker cannot run Gradle during the build. Pre-build the jar locally first, then Docker skips the Gradle step entirely:
+  ```bash
+  # 1. Build the jar locally (requires JDK 21)
+  ./gradlew :app:bootJar -x test --no-daemon
+
+  # 2. Start the stack using the pre-built jar
+  docker compose -f docker-compose.prebuilt.yml up --build
+  ```
+  Docker will fail immediately with a `COPY` error if the jar is missing — this is intentional (fail fast).
+  > **Note**: The jar bundles whatever keystore is at `app/src/main/resources/keystore.p12` at build time. For E2E testing with SSL, ensure the testE2E keystore is in place before running `bootJar`.
 
 ## Run system/e2e suites against WireMock only
 
