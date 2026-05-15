@@ -1,0 +1,20 @@
+{
+  "priority": 1,
+  "name": "SQL injection in firstname",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/familyties",
+    "bodyPatterns": [
+      { "matchesJsonPath": "$[?(@.firstName =~ /.*[';\"=\\-\\\\].*/ || @.firstName =~ /.*DROP.*/ || @.firstName =~ /.*OR.*1.*=.*1.*/)]" }
+    ]
+  },
+  "response": {
+    "status": 400,
+    "jsonBody": {
+      "timestamp": "2025-01-01T12:00:00Z",
+      "message": "addPerson.request.firstName: First name contains invalid characters",
+      "path": "/v1/familyties"
+    },
+    "headers": { "Content-Type": "application/json" }
+  }
+}

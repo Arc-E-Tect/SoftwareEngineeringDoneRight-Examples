@@ -1,0 +1,14 @@
+{
+  "name": "Delete person not found",
+  "request": {
+    "method": "DELETE",
+    "urlPath": "/v1/familyties/lastnames/Person",
+    "queryParameters": {
+      "firstname": { "equalTo": "Missing" }
+    }
+  },
+  "response": {
+    "status": 404,
+    "body": "Person not found"
+  }
+}

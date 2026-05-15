@@ -1,0 +1,15 @@
+{
+  "name": "Get parent relationships for Smith",
+  "request": {
+    "method": "GET",
+    "urlPath": "/v1/familyties/relationships/parent/lastnames/Smith"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": [
+      { "id": "22222222-2222-2222-2222-222222222222", "firstName": "Maria", "lastName": "Smith" },
+      { "id": "33333333-3333-3333-3333-333333333333", "firstName": "Charly", "lastName": "Smith" }
+    ]
+  }
+}

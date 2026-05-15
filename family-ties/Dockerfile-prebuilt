@@ -20,12 +20,11 @@ RUN chown -R familyties:familyties /app
 # Switch to non-root user
 USER familyties
 
-# Expose port
+# Expose ports (HTTP and HTTPS)
 EXPOSE 8080 8443
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD curl -f -k https://localhost:8443/actuator/health || exit 1
+# Health check (HTTPS with self-signed cert, use --insecure)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+  CMD curl -sfk https://localhost:8443/actuator/health || exit 1
 
-# Run the application
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

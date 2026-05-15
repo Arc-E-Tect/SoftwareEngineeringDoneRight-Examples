@@ -1,0 +1,27 @@
+{
+  "name": "Get BigFamily first page",
+  "request": {
+    "method": "GET",
+    "urlPath": "/v1/familyties/lastnames/BigFamily",
+    "queryParameters": {
+      "page": { "absent": true },
+      "size": { "absent": true }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": [
+      { "id": "a1", "firstName": "Olivia", "lastName": "BigFamily" },
+      { "id": "a2", "firstName": "Liam", "lastName": "BigFamily" },
+      { "id": "a3", "firstName": "Emma", "lastName": "BigFamily" },
+      { "id": "a4", "firstName": "Noah", "lastName": "BigFamily" },
+      { "id": "a5", "firstName": "Ava", "lastName": "BigFamily" },
+      { "id": "a6", "firstName": "Sophia", "lastName": "BigFamily" },
+      { "id": "a7", "firstName": "Mason", "lastName": "BigFamily" },
+      { "id": "a8", "firstName": "Isabella", "lastName": "BigFamily" },
+      { "id": "a9", "firstName": "Logan", "lastName": "BigFamily" },
+      { "id": "a10", "firstName": "Mia", "lastName": "BigFamily" }
+    ]
+  }
+}

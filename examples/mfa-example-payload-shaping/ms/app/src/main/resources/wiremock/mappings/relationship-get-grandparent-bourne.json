@@ -1,0 +1,14 @@
+{
+  "name": "Get grandparent relationships for Bourne",
+  "request": {
+    "method": "GET",
+    "urlPath": "/v1/familyties/relationships/grandparent/lastnames/Bourne"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": [
+      { "id": "ffff1111-ffff-ffff-ffff-ffffffffffff", "firstName": "John", "lastName": "Smith" }
+    ]
+  }
+}

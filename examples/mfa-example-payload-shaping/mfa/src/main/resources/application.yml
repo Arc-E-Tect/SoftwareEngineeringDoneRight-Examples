@@ -1,0 +1,120 @@
+spring:
+  application:
+    name: mfe-adapter
+
+  # ── JPA / H2 ──────────────────────────────────────────────────────────────
+  datasource:
+    url: jdbc:h2:mem:mfe-adapter-db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  h2:
+    console:
+      enabled: false   # Enable only in the local profile (application-local.yml)
+
+  # ── Kafka ─────────────────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+  # ── Security / OAuth2 ─────────────────────────────────────────────────────
+  security:
+    oauth2:
+      client:
+        registration:
+          oidc-provider:
+            client-id: ${MFE_ADAPTER_OIDC_PROVIDER_CLIENT_ID:placeholder}
+            client-secret: ${MFE_ADAPTER_OIDC_PROVIDER_CLIENT_SECRET:placeholder}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/auth/callback"
+            scope: openid,profile,email
+        provider:
+          oidc-provider:
+            issuer-uri: ${MFE_ADAPTER_OIDC_PROVIDER_ISSUER_URI:http://localhost:9999}
+
+# ── Server / SSL ─────────────────────────────────────────────────────────────
+server:
+  port: 8443
+  ssl:
+    enabled: true
+    client-auth: none
+    key-store: classpath:ssl/keystore.p12
+    key-store-type: PKCS12
+    key-store-password: ${MFE_ADAPTER_KEYSTORE_PASSWORD:placeholder}
+    trust-store: classpath:ssl/truststore.p12
+    trust-store-type: PKCS12
+    trust-store-password: ${MFE_ADAPTER_TRUSTSTORE_PASSWORD:placeholder}
+
+# ── Actuator ─────────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# ── MFA Properties ──────────────────────────────────────────────────────────
+mfe-adapter:
+  session:
+    cookie-name: MFESESSION
+    ttl-minutes: 30
+    http-only: true
+    secure: true
+    same-site: Strict
+    cleanup-interval-ms: 300000
+
+  api-gateway:
+    validated-header: X-API-Key-Validated
+    validated-value: "true"
+
+  oidc-provider:
+    issuer-uri: ${MFE_ADAPTER_OIDC_PROVIDER_ISSUER_URI:http://localhost:9999}
+    realm: ${MFE_ADAPTER_OIDC_PROVIDER_REALM:placeholder}
+    client-id: ${MFE_ADAPTER_OIDC_PROVIDER_CLIENT_ID:placeholder}
+    client-secret: ${MFE_ADAPTER_OIDC_PROVIDER_CLIENT_SECRET:placeholder}
+
+  authorization-service:
+    base-url: ${MFE_ADAPTER_AUTHZ_BASE_URL:http://localhost:9999}
+    token-swap-path: /token/swap
+
+  microservice:
+    base-url: ${MFE_ADAPTER_MS_BASE_URL:http://localhost:8081}
+    context-path: /api
+
+  mtls:
+    enabled: true
+    key-store: classpath:ssl/keystore.p12
+    key-store-password: ${MFE_ADAPTER_KEYSTORE_PASSWORD}
+    key-store-type: PKCS12
+    trust-store: classpath:ssl/truststore.p12
+    trust-store-password: ${MFE_ADAPTER_TRUSTSTORE_PASSWORD}
+    trust-store-type: PKCS12
+
+  kafka:
+    reference-data:
+      topic-pattern: "reference-data\\..*"
+    consumer:
+      group-id: ${MFE_ADAPTER_KAFKA_CONSUMER_GROUP_ID:mfe-adapter-reference-data}
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.arc_e_tect.book.sedr.mfeadapter: INFO
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.hibernate: WARN

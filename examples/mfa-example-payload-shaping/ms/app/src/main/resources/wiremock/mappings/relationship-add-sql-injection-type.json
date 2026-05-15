@@ -1,0 +1,20 @@
+{
+  "priority": 1,
+  "name": "SQL injection in relationship type",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/familyties/relationships",
+    "bodyPatterns": [
+      { "matchesJsonPath": "$[?(@.type =~ /.*[';\"=\\\\].*/ || @.type =~ /.*DROP.*/ || @.type =~ /.*OR.*1.*=.*1.*/)]" }
+    ]
+  },
+  "response": {
+    "status": 400,
+    "jsonBody": {
+      "timestamp": "2025-01-01T12:00:00Z",
+      "message": "addRelationship.request.type: Relationship type contains invalid characters",
+      "path": "/v1/familyties/relationships"
+    },
+    "headers": { "Content-Type": "application/json" }
+  }
+}

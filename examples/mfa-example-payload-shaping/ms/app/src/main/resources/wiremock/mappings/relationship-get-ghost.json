@@ -1,0 +1,10 @@
+{
+  "name": "Get relationships not found",
+  "request": {
+    "method": "GET",
+    "urlPathPattern": "/v1/familyties/relationships/.*/lastnames/Ghost"
+  },
+  "response": {
+    "status": 404
+  }
+}

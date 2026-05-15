@@ -1,0 +1,20 @@
+{
+  "name": "Add grandparent relationship success",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/familyties/relationships",
+    "bodyPatterns": [
+      { "matchesJsonPath": "$[?(@.fromFirstName == 'Clara' && @.fromLastName == 'Bourne' && @.toFirstName == 'Emma' && @.toLastName == 'Smith' && @.type == 'grandparent')]" }
+    ]
+  },
+  "response": {
+    "status": 201,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "id": "66666666-6666-6666-6666-666666666666",
+      "fromPersonId": "c1c1c1c1-1111-1111-1111-111111111111",
+      "toPersonId": "d2d2d2d2-2222-2222-2222-222222222222",
+      "type": "grandparent"
+    }
+  }
+}
