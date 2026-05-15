@@ -1,0 +1,27 @@
+{
+  "id": "29343d39-5e72-4758-9a6d-7c26a1ff8288",
+  "request": {
+    "urlPath": "/v1/user-accounts/alice_in_wonderland",
+    "method": "DELETE",
+    "headers": {
+      "Content-Type": {
+        "equalTo": "application/json"
+      },
+      "Accept": {
+        "equalTo": "application/json"
+      },
+      "x-api-key": {
+        "equalTo": "test-api-key"
+      }
+    }
+  },
+  "response": {
+    "status": 204,
+    "body": "",
+    "headers": {
+      "Content-Type": "application/json",
+      "Matched-Stub-Id": "26b49993-ceec-42bc-9fb1-7d3ade102847"
+    }
+  },
+  "uuid": "29343d39-5e72-4758-9a6d-7c26a1ff8288"
+}

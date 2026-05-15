@@ -1,0 +1,42 @@
+# Vanilla profile – no auth, no SSL, no Kafka, no IAS token-swap.
+# The MFA acts as a plain pass-through HTTP proxy to the microservice.
+
+server:
+  port: 8080
+  ssl:
+    enabled: false
+
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.security.oauth2.client.autoconfigure.OAuth2ClientAutoConfiguration
+  # Disable OAuth2 client registration so Spring Security does not attempt OIDC discovery
+  security:
+    oauth2:
+      client:
+        registration:
+          oidc-provider: ~
+        provider:
+          oidc-provider:
+            issuer-uri: ~
+      resourceserver:
+        jwt:
+          issuer-uri: ~
+
+mfe-adapter:
+  session:
+    required: false
+    secure: false
+
+  authorization-service:
+    required: false
+
+  microservice:
+    base-url: http://localhost:8081
+    context-path: ""
+
+  mtls:
+    enabled: false

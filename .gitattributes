@@ -1,0 +1,21 @@
+# Auto-detect line endings and normalize them
+* text=auto
+
+# Force Unix line endings for shell scripts and executables
+*.sh text eol=lf
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+
+# Keep Windows batch files with CRLF
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.zip binary
+*.tar binary
+*.gz binary

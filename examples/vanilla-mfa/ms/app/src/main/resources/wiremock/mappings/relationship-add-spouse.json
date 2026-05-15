@@ -1,0 +1,20 @@
+{
+  "name": "Add spouse relationship success",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/familyties/relationships",
+    "bodyPatterns": [
+      { "matchesJsonPath": "$[?(@.fromFirstName == 'Bob' && @.fromLastName == 'Johnson' && @.toFirstName == 'Alice' && @.toLastName == 'Williams' && @.type == 'spouse')]" }
+    ]
+  },
+  "response": {
+    "status": 201,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "fromPersonId": "aaaa1111-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "toPersonId": "bbbb2222-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "type": "spouse"
+    }
+  }
+}

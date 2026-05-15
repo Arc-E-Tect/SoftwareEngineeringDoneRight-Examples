@@ -1,0 +1,16 @@
+{
+  "priority": 1,
+  "name": "Relationship target missing",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/familyties/relationships",
+    "bodyPatterns": [
+      { "matchesJsonPath": "$[?(@.fromFirstName == 'John' && @.fromLastName == 'Smith' && @.toFirstName == 'Missing' && @.toLastName == 'Person')]" }
+    ]
+  },
+  "response": {
+    "status": 404,
+    "body": "Person not found",
+    "headers": { "Content-Type": "text/plain" }
+  }
+}

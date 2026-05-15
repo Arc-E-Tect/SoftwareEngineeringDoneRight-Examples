@@ -1,0 +1,264 @@
+= Blue Needle Engineering Guide
+:toc: left
+:toclevels: 3
+:sectnums:
+
+== Purpose and Scope
+
+`Blue Needle` is a deliberately small Angular + TypeScript client used to validate the generated API stubs for all five IFF microservices (system-admin, user-account, auth-server, relationship, social-network) against WireMock stubs.
+
+It is not intended to be a full product UI. It is an integration confidence tool with three goals:
+
+* Verify generated stubs are usable by a browser-style client.
+* Verify the local Docker Compose setup is correct and reproducible.
+* Provide an extendable smoke-test baseline using BDD tooling.
+
+== Core Design Decisions
+
+=== 1) Keep the frontend simple, make the environment explicit
+
+The UI is intentionally minimal: one screen, a few configuration inputs, and three operations (`POST`, `GET`, `DELETE`).
+
+Reasoning:
+
+* Lower cognitive load for validation-focused work.
+* Faster detection of integration problems (headers, URL paths, response status mismatches).
+* Easier onboarding for engineers who are not front-end specialists.
+
+=== 2) Use Angular Signals for local state
+
+State is managed with Angular signals instead of introducing a larger state framework.
+
+[source,typescript]
+----
+protected readonly apiKey = signal('test-api-key');
+protected readonly username = signal('alice_in_wonderland');
+protected readonly status = signal('Ready');
+protected readonly response = signal<unknown>(null);
+----
+
+Reasoning:
+
+* Signals are built-in and ergonomic for component-local state.
+* Good fit for a small tool where global state orchestration is unnecessary.
+
+=== 3) Keep API calls explicit with `HttpClient`
+
+The app calls the API directly and converts observables with `firstValueFrom` for straightforward async flow.
+
+[source,typescript]
+----
+const payload: Record<string, unknown> = {
+  consent: this.consent(),
+  username: this.username()
+};
+payload[this.credentialField] = this.userPassword();
+
+const result = await firstValueFrom(this.http.post<UserAccountResponse>(
+  `${this.baseUrl()}/user-accounts`,
+  payload,
+  { headers: this.buildHeaders() }
+));
+----
+
+Reasoning:
+
+* Easy for intermediate engineers to read and debug.
+* Keeps request/response handling close to the interaction logic.
+
+=== 4) Use proxy-based local routing
+
+Frontend calls `/v1/...` and relies on Angular dev-server proxy to forward to WireMock.
+
+[source,json]
+----
+{
+  "/v1": {
+    "target": "https://localhost:8443",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}
+----
+
+Reasoning:
+
+* Avoids CORS complexity in local development.
+* Mimics environment-driven base URL switching.
+
+=== 5) Normalize generated stubs for browser clients
+
+Generated mappings include strict transport-level headers that browser clients cannot reliably control (`User-Agent`, `accept-encoding`, `X-Forwarded-For`).
+
+The script `scripts/prepare-wiremock-stubs.mjs` removes those matchers before loading mappings into WireMock.
+
+[source,javascript]
+----
+const removeHeaders = new Set(['accept-encoding', 'User-Agent', 'X-Forwarded-For']);
+
+for (const [key] of Object.entries(headers)) {
+  if (removeHeaders.has(key)) {
+    delete headers[key];
+  }
+}
+----
+
+Reasoning:
+
+* Preserves contract intent while avoiding false negatives from client/runtime-specific headers.
+* Makes generated stubs realistic for browser traffic.
+
+== Runtime and Tooling Architecture
+
+=== Components
+
+* Angular app (`src/app/*`) for manual validation.
+* WireMock container (`docker-compose.iff.yml`) for API simulation.
+* Stub preparation script to convert generated stubs to browser-compatible mappings.
+* BDD smoke suite using Cucumber + Playwright request API.
+
+=== Container strategy
+
+WireMock mode uses `docker-compose.iff.yml`.
+Real IFF mode uses `red-thread/e2e/src/testE2E/resources/docker-compose.e2e.yml` (the same stack as the Red Thread E2E test suite).
+
+[source,yaml]
+----
+services:
+  system-admin-wiremock:
+    image: wiremock/wiremock:3.13.2-2-alpine
+    platform: linux/amd64
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./wiremock/system-admin:/home/wiremock:ro
+    command:
+      - "--https-port"
+      - "8443"
+  # Additional services follow the same pattern on ports 8444–8447
+  # (user-account, auth-server, relationship, social-network)
+----
+
+Reasoning:
+
+* Pinning a known version improves repeatability.
+* Explicit `platform: linux/amd64` avoids Apple Silicon pull/runtime issues for this image tag.
+
+== BDD Smoke Test Design
+
+== Why Cucumber + Playwright
+
+* Cucumber gives readable executable specifications for API behavior.
+* Playwright request context provides robust HTTP-level automation without requiring browser UI automation for this use case.
+
+Example step logic:
+
+[source,javascript]
+----
+When('health information is retrieved', async function () {
+  this.healthResponse = await this.api.get('/actuator/health');
+  this.healthBody = await this.healthResponse.json();
+});
+
+Then('the application is operational', async function () {
+  assert.equal(this.healthBody.status, 'UP');
+});
+----
+
+Scenario focus:
+
+* Retrieve health information — assert the application is operational
+* Retrieve service version — assert version name, version code, and all integrated dependencies
+
+=== Orchestration and reliability
+
+The smoke runner supports two modes, selected by the `IFF_MODE` environment variable (`wiremock` or `real`):
+
+1. Brings up the infrastructure (WireMock stubs or full IFF stack).
+2. Waits for the readiness endpoint to respond.
+3. Runs Cucumber scenarios.
+4. Always tears down the infrastructure.
+
+[source,javascript]
+----
+run('npm', ['run', upScript]);   // wiremock:up or iff:up
+await waitForReady();            // polls readiness URL with timeout
+run('npm', ['run', 'smoke:test:run']);
+// finally:
+run('npm', ['run', downScript]); // wiremock:down or iff:down
+----
+
+Reliability rationale:
+
+* Eliminates race conditions (`ECONNRESET` before service is healthy).
+* Ensures deterministic local and CI behavior in both modes.
+
+For Mode A (WireMock), stubs must be generated before the first run and re-generated after any IFF API or implementation change:
+
+[source,bash]
+----
+cd ../red-thread && ./gradlew :system-admin:docGen :user-account:docGen :auth-server:docGen :relationship:docGen :social-network:docGen --no-daemon
+cd ../blue-needle && npm run smoke:test
+----
+
+For Mode B (real IFF stack), Docker images are built automatically when running `:e2e:testE2E` in `red-thread/` (`buildBeforeUp = true`).
+The smoke runner re-uses those images without rebuilding:
+
+[source,bash]
+----
+npm run smoke:test:iff
+----
+
+== Standards and Conventions
+
+=== Configuration-over-hardcoding
+
+* API base path is represented as a state/config value.
+* Smoke steps support per-service base URL overrides via environment variables (`IFF_SYSTEM_ADMIN_URL`, `IFF_USER_ACCOUNT_URL`, `IFF_AUTH_SERVER_URL`, `IFF_RELATIONSHIP_URL`, `IFF_SOCIAL_NETWORK_URL`) and mode selection via `IFF_MODE`.
+
+=== Security hygiene
+
+* No credentials are committed.
+* Test values are explicit non-secret defaults for local validation only.
+
+=== Separation of responsibilities
+
+* Frontend validates integration semantics.
+* Stub generation is owned by each microservice (`red-thread/<service>/build/wiremock/stubs`).
+* Blue Needle consumes and adapts stubs from all five services for browser compatibility.
+
+== Project Structure (conceptual)
+
+[source,text]
+----
+blue-needle/
+  src/app/                      # Angular UI + API call flow
+  blue-needle-smoke/             # Cucumber features and step definitions
+  scripts/
+    prepare-wiremock-stubs.mjs  # stub normalization
+    run-smoke.mjs               # end-to-end smoke orchestration
+  start-frontend.ps1            # start Angular dev server (PowerShell, kills existing on port 4200)
+  stop-frontend.ps1             # stop Angular dev server (PowerShell)
+  docker-compose.iff.yml        # WireMock mode compose file
+  proxy.conf.json
+----
+
+== Extension Guidance
+
+For an intermediate engineer, the easiest next extensions are:
+
+* Add negative-path BDD scenarios (e.g., invalid API key, invalid payload).
+* Add schema assertions for response bodies.
+* Add CI job that runs `npm run smoke:test` on pull requests.
+* Introduce a small API service layer if endpoint count grows.
+
+== Key Trade-offs
+
+* Simplicity over abstraction: faster understanding, less indirection.
+* Determinism over flexibility: pinned image and explicit readiness checks reduce flaky behavior.
+* Contract realism over strictness: transport-header matcher normalization favors client compatibility.
+
+== Summary
+
+Blue Needle is intentionally small but engineered for reliability. Its value is in proving that generated API guidance and generated stubs are operationally usable by real clients, with fast feedback when integration assumptions drift.

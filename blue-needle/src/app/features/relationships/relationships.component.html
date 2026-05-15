@@ -1,0 +1,62 @@
+<section class="panel">
+  <h2 class="panel-title">Add Relationship</h2>
+  <form (ngSubmit)="addRelationship()">
+    <div class="form-row">
+      <input type="text" [(ngModel)]="addForm.fromFirstName" name="fromFirstName" placeholder="From first name" />
+      <input type="text" [(ngModel)]="addForm.fromLastName" name="fromLastName" placeholder="From last name" />
+    </div>
+    <div class="form-row">
+      <input type="text" [(ngModel)]="addForm.toFirstName" name="toFirstName" placeholder="To first name" />
+      <input type="text" [(ngModel)]="addForm.toLastName" name="toLastName" placeholder="To last name" />
+    </div>
+    <div class="form-row">
+      <input type="text" [(ngModel)]="addForm.type" name="relType"
+             placeholder="Relationship type (e.g. parent, child, sibling)" />
+      <button type="submit" [disabled]="addLoading() || !isAddFormValid()">
+        {{ addLoading() ? 'Adding…' : 'Add Relationship' }}
+      </button>
+    </div>
+  </form>
+  @if (addError()) {
+    <div class="error-banner" role="alert">{{ addError() }}</div>
+  }
+  @if (addResult()) {
+    <div class="success-banner">
+      Relationship added:
+      {{ addResult()!.fromPerson?.firstName }} {{ addResult()!.fromPerson?.lastName }}
+      &rarr; <em>{{ addResult()!.type }}</em>
+      &rarr; {{ addResult()!.toPerson?.firstName }} {{ addResult()!.toPerson?.lastName }}
+    </div>
+  }
+</section>
+
+<section class="panel">
+  <h2 class="panel-title">Find Relations</h2>
+  <div class="form-row">
+    <input type="text" [(ngModel)]="findForm.type" name="findType"
+           placeholder="Type (e.g. child)" />
+    <input type="text" [(ngModel)]="findForm.lastName" name="findLastName"
+           placeholder="Last name" />
+    <button type="button" (click)="findRelations()"
+            [disabled]="findLoading() || !findForm.type.trim() || !findForm.lastName.trim()">
+      {{ findLoading() ? 'Searching…' : 'Search' }}
+    </button>
+  </div>
+  @if (findError()) {
+    <div class="error-banner" role="alert">{{ findError() }}</div>
+  }
+  @if (findResults().length > 0) {
+    <table>
+      <thead><tr><th>First Name</th><th>Last Name</th></tr></thead>
+      <tbody>
+        @for (p of findResults(); track p.lastName + p.firstName) {
+          <tr><td>{{ p.firstName }}</td><td>{{ p.lastName }}</td></tr>
+        }
+      </tbody>
+    </table>
+  } @else if (findDone()) {
+    <p class="loading">
+      No &ldquo;{{ findForm.type }}&rdquo; relations found for last name &ldquo;{{ findForm.lastName }}&rdquo;.
+    </p>
+  }
+</section>

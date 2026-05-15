@@ -1,0 +1,867 @@
+import org.asciidoctor.gradle.jvm.AsciidoctorTask
+import org.cyclonedx.Version
+import org.cyclonedx.model.Component
+import org.cyclonedx.model.OrganizationalContact
+import org.cyclonedx.model.OrganizationalEntity
+
+plugins {
+	alias(ftlibs.plugins.spring.boot)
+	alias(ftlibs.plugins.spring.dependency.management)
+	alias(ftlibs.plugins.org.owasp.dependencycheck)
+	alias(ftlibs.plugins.com.github.jk1.dependency.license.report)
+	alias(ftlibs.plugins.org.cyclonedx.bom)
+	id 'java'
+	id 'jacoco'
+	alias(ftlibs.plugins.asciidoctor)
+	alias(ftlibs.plugins.docker.compose)
+}
+
+// Helper function to load environment variables from .env file
+def loadEnvFile(File file) {
+	def env = [:]
+	if (file.exists()) {
+		file.readLines().each { line ->
+			// Skip comments and empty lines
+			if (!line.trim().startsWith('#') && line.contains('=')) {
+				def parts = line.split('=', 2)
+				if (parts.length == 2) {
+					env[parts[0].trim()] = parts[1].trim()
+				}
+			}
+		}
+	}
+	return env
+}
+
+def e2eManagedEnvKeys = ['POSTGRES_DB', 'POSTGRES_USER', 'SERVER_PORT']
+
+// Load .env file if it exists (for local development)
+// CI/CD should set environment variables directly
+def envFile = project.parent.file('.env')
+if (envFile.exists()) {
+	envFile.readLines().each { line ->
+		line = line.trim()
+		if (line && !line.startsWith('#') && line.contains('=')) {
+			def parts = line.split('=', 2)
+			if (parts.length == 2) {
+				def key = parts[0].trim()
+				def value = parts[1].trim()
+				// Only set if not already in environment (env vars take precedence)
+				if (key && value && !System.getenv(key)) {
+					System.setProperty(key, value)
+				}
+			}
+		}
+	}
+}
+
+group = 'com.arc_e_tect.book.sedr.familyties'
+version = project.findProperty('version') ?: 'MISSING_VERSION'
+
+bootJar {
+	archiveBaseName.set("familyTies")
+}
+
+jar {
+	archiveBaseName.set("familyTies")
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+configurations {
+	compileOnly.extendsFrom annotationProcessor
+	asciidoctorExt
+	byteBuddyAgent
+}
+
+asciidoctorj {
+	version = ftlibs.versions.asciidoctorj.get()
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation(ftlibs.spring.boot.starter.web)
+	implementation(ftlibs.spring.boot.starter.validation)
+	implementation(ftlibs.spring.boot.starter.data.jpa)
+	implementation(ftlibs.spring.boot.starter.actuator)
+	implementation(ftlibs.springdoc.openapi.ui)
+	implementation(ftlibs.jackson.databind)
+	implementation(ftlibs.jackson.datatype.jsr310)
+
+	compileOnly(ftlibs.lombok)
+	annotationProcessor(ftlibs.lombok)
+
+	runtimeOnly(ftlibs.h2)
+	runtimeOnly(ftlibs.postgresql)
+
+	// Docker Compose support for E2E tests
+	testImplementation(ftlibs.spring.boot.docker.compose)
+
+	testImplementation(ftlibs.spring.boot.starter.test)
+	testImplementation(ftlibs.mockito.core)
+	testImplementation(ftlibs.archunit)
+	testImplementation(ftlibs.rest.docs.mockmvc)
+	testImplementation(ftlibs.cucumber.java)
+	testImplementation(ftlibs.cucumber.junit)
+	testImplementation(ftlibs.cucumber.spring)
+	testImplementation(ftlibs.testcontainers.junit)
+	testImplementation(ftlibs.testcontainers.postgresql)
+	testImplementation(ftlibs.wiremock.standalone)
+
+	byteBuddyAgent(ftlibs.byte.buddy.agent)
+
+	asciidoctorExt(ftlibs.asciidoctorj)
+}
+
+def snippetsDir = layout.buildDirectory.dir("generated-snippets")
+
+testing {
+	suites {
+		test {
+			useJUnitJupiter()
+		}
+
+		register("testComponent", JvmTestSuite) {
+			useJUnitJupiter()
+			dependencies {
+				implementation(project())
+				implementation(ftlibs.spring.boot.starter.test)
+				implementation(ftlibs.mockito.core)
+				implementation(ftlibs.spring.boot.starter.web)
+				implementation(ftlibs.spring.boot.starter.data.jpa)
+			}
+			sources {
+				java { setSrcDirs(["src/testComponent/java"]) }
+				resources { setSrcDirs(["src/testComponent/resources"]) }
+			}
+		}
+
+		register("docGen", JvmTestSuite) {
+			useJUnitJupiter()
+			dependencies {
+				implementation(project())
+				implementation(ftlibs.spring.boot.starter.test)
+				implementation(ftlibs.rest.docs.mockmvc)
+				implementation(ftlibs.spring.boot.starter.web)
+				implementation(ftlibs.jackson.databind)
+				implementation(ftlibs.jackson.datatype.jsr310)
+			}
+			sources {
+				java { setSrcDirs(["src/docGen/java"]) }
+				resources { setSrcDirs(["src/docGen/resources"]) }
+			}
+		}
+
+		register("testContract", JvmTestSuite) {
+			useJUnitJupiter()
+			dependencies {
+				implementation(project())
+				implementation(ftlibs.spring.boot.starter.test)
+				implementation(ftlibs.spring.boot.starter.web)
+				implementation(ftlibs.spring.boot.starter.jdbc)
+				implementation(ftlibs.httpclient5)
+				implementation(ftlibs.httpcore5)
+				implementation(ftlibs.rest.docs.mockmvc)
+				implementation(ftlibs.jackson.databind)
+				implementation(ftlibs.jackson.datatype.jsr310)
+				implementation(ftlibs.cucumber.java)
+				implementation(ftlibs.cucumber.junit)
+				implementation(ftlibs.cucumber.spring)
+				implementation(ftlibs.junit.platform.suite)
+				implementation(ftlibs.testcontainers.junit)
+				implementation(ftlibs.testcontainers.postgresql)
+			}
+			sources {
+				java { setSrcDirs(["src/testContract/java"]) }
+				// Include testSystem resources for SSL keystore and application-test.yml
+				resources { setSrcDirs(["src/testContract/resources", "src/testSystem/resources"]) }
+			}
+		}
+
+		register("testArchitecture", JvmTestSuite) {
+			useJUnitJupiter()
+			dependencies {
+				implementation(project())
+				implementation(ftlibs.archunit)
+			}
+			sources {
+				java { setSrcDirs(["src/testArchitecture/java"]) }
+				resources { setSrcDirs(["src/testArchitecture/resources"]) }
+			}
+		}
+
+		// testSystemWireMock: Verify WireMock stubs accurately represent real service
+		// This ensures consumer applications can develop against WireMock stubs
+		// while the real service is being developed
+		register("testSystemWireMock", JvmTestSuite) {
+			useJUnitJupiter()
+			dependencies {
+				implementation(project())
+				implementation(ftlibs.spring.boot.starter.test)
+				implementation(ftlibs.spring.boot.starter.web)
+				implementation(ftlibs.spring.boot.starter.jdbc)  // Needed for JdbcTemplate (optional autowire)
+				implementation(ftlibs.httpclient5)
+				implementation(ftlibs.httpcore5)
+				implementation(ftlibs.cucumber.java)
+				implementation(ftlibs.cucumber.junit)
+				implementation(ftlibs.cucumber.spring)
+				implementation(ftlibs.junit.platform.suite)
+				implementation(ftlibs.wiremock.standalone)
+			}
+			sources {
+				// Uses same test scenarios as testSystem
+				java { setSrcDirs(["src/testSystem/java"]) }
+				resources { setSrcDirs(["src/testSystem/resources"]) }
+			}
+		}
+
+		register("testSystem", JvmTestSuite) {
+			useJUnitJupiter()
+			dependencies {
+				implementation(project())
+				implementation(ftlibs.spring.boot.starter.test)
+				implementation(ftlibs.spring.boot.starter.web)
+				implementation(ftlibs.spring.boot.starter.jdbc)
+				implementation(ftlibs.httpclient5)
+				implementation(ftlibs.httpcore5)
+				implementation(ftlibs.cucumber.java)
+				implementation(ftlibs.cucumber.junit)
+				implementation(ftlibs.cucumber.spring)
+				implementation(ftlibs.junit.platform.suite)
+				implementation(ftlibs.testcontainers.junit)
+				implementation(ftlibs.testcontainers.postgresql)
+				implementation(ftlibs.wiremock.standalone)
+			}
+			sources {
+				java { setSrcDirs(["src/testSystem/java"]) }
+				resources { setSrcDirs(["src/testSystem/resources"]) }
+			}
+		}
+
+		register("testE2E", JvmTestSuite) {
+			useJUnitJupiter()
+			dependencies {
+				implementation(project())
+				implementation(ftlibs.spring.boot.starter.test)
+				implementation(ftlibs.spring.boot.starter.web)
+				implementation(ftlibs.spring.boot.starter.jdbc)
+				implementation(ftlibs.httpclient5)
+				implementation(ftlibs.httpcore5)
+				implementation(ftlibs.cucumber.java)
+				implementation(ftlibs.cucumber.junit)
+				implementation(ftlibs.cucumber.spring)
+				implementation(ftlibs.junit.platform.suite)
+			}
+			sources {
+				java { setSrcDirs(["src/testE2E/java"]) }
+				resources { setSrcDirs(["src/testE2E/resources"]) }
+			}
+		}
+	}
+}
+
+tasks.register('validateE2EEnvironment') {
+	group = 'verification'
+	description = 'Validates E2E environment consistency between root and E2E .env files'
+	def rootEnvFile = project.parent.file('.env')
+	def e2eEnvFile = file('src/testE2E/resources/.env')
+	doLast {
+		def errors = []
+		def parseEnv = { File targetFile ->
+			def env = [:]
+			if (targetFile.exists()) {
+				targetFile.readLines().each { line ->
+					if (!line.trim().startsWith('#') && line.contains('=')) {
+						def parts = line.split('=', 2)
+						if (parts.length == 2) {
+							env[parts[0].trim()] = parts[1].trim()
+						}
+					}
+				}
+			}
+			env
+		}
+
+		if (!rootEnvFile.exists()) {
+			errors << "Missing ${rootEnvFile}. Run ./setup-test-env.sh first."
+		}
+
+		if (!e2eEnvFile.exists()) {
+			errors << "Missing ${e2eEnvFile}. Run ./setup-test-env.sh first."
+		}
+
+		if (errors.isEmpty()) {
+			def rootEnv = parseEnv(rootEnvFile)
+			def e2eEnv = parseEnv(e2eEnvFile)
+
+			e2eManagedEnvKeys.each { key ->
+				def rootValue = rootEnv[key]
+				def e2eValue = e2eEnv[key]
+				if (!rootValue) {
+					errors << "Missing ${key} in ${rootEnvFile}"
+				}
+				if (!e2eValue) {
+					errors << "Missing ${key} in ${e2eEnvFile}"
+				}
+				if (rootValue && e2eValue && rootValue != e2eValue) {
+					errors << "Mismatched value for ${key} between ${rootEnvFile} and ${e2eEnvFile}"
+				}
+			}
+
+			if (rootEnv.containsKey('SSL_KEYSTORE_PASSWORD') || e2eEnv.containsKey('SSL_KEYSTORE_PASSWORD')) {
+				errors << 'SSL_KEYSTORE_PASSWORD must be environment-only and must not be persisted in .env files'
+			}
+
+			if (rootEnv.containsKey('POSTGRES_PASSWORD') || e2eEnv.containsKey('POSTGRES_PASSWORD')) {
+				errors << 'POSTGRES_PASSWORD must be environment-only and must not be persisted in .env files'
+			}
+
+			if (rootEnv.containsKey('H2_PASSWORD') || e2eEnv.containsKey('H2_PASSWORD')) {
+				errors << 'H2_PASSWORD must be environment-only and must not be persisted in .env files'
+			}
+		}
+
+		if (!System.getenv('SSL_KEYSTORE_PASSWORD')) {
+			errors << 'Missing SSL_KEYSTORE_PASSWORD in the shell environment'
+		}
+
+		if (!System.getenv('POSTGRES_PASSWORD')) {
+			errors << 'Missing POSTGRES_PASSWORD in the shell environment'
+		}
+
+		if (!System.getenv('H2_PASSWORD')) {
+			errors << 'Missing H2_PASSWORD in the shell environment'
+		}
+
+		if (!errors.isEmpty()) {
+			throw new GradleException("E2E environment validation failed:\n - ${errors.join('\n - ')}")
+		}
+
+		println '✓ E2E environment validation passed'
+	}
+}
+
+tasks.register('validateSystemEnvironment') {
+	group = 'verification'
+	description = 'Validates system test environment prerequisites and secret policy'
+	def rootEnvFile = project.parent.file('.env')
+	def systemKeystoreFile = file('src/testSystem/resources/ssl/keystore.p12')
+	doLast {
+		def errors = []
+		def parseEnv = { File targetFile ->
+			def env = [:]
+			if (targetFile.exists()) {
+				targetFile.readLines().each { line ->
+					if (!line.trim().startsWith('#') && line.contains('=')) {
+						def parts = line.split('=', 2)
+						if (parts.length == 2) {
+							env[parts[0].trim()] = parts[1].trim()
+						}
+					}
+				}
+			}
+			env
+		}
+		def rootEnv = parseEnv(rootEnvFile)
+
+		['SSL_KEYSTORE_PASSWORD', 'POSTGRES_PASSWORD', 'H2_PASSWORD'].each { key ->
+			if (rootEnv.containsKey(key)) {
+				errors << "${key} must be environment-only and must not be persisted in ${rootEnvFile}"
+			}
+		}
+
+		['SSL_KEYSTORE_PASSWORD', 'POSTGRES_PASSWORD', 'H2_PASSWORD'].each { key ->
+			if (!(System.getenv(key) ?: System.getProperty(key))) {
+				errors << "Missing ${key} in the shell environment"
+			}
+		}
+
+		['POSTGRES_DB', 'POSTGRES_USER', 'SERVER_PORT'].each { key ->
+			def value = System.getenv(key) ?: System.getProperty(key) ?: rootEnv[key]
+			if (!value) {
+				errors << "Missing ${key} (set it via environment or ${rootEnvFile})"
+			}
+		}
+
+		if (!systemKeystoreFile.exists()) {
+			errors << "Missing ${systemKeystoreFile}. Run ./setup-test-env.sh first."
+		}
+
+		if (!errors.isEmpty()) {
+			throw new GradleException("System environment validation failed:\n - ${errors.join('\n - ')}")
+		}
+
+		println '✓ System environment validation passed'
+	}
+}
+
+/*
+ * E2E Testing Workflow
+ * 
+ * E2E tests run against a production-like Docker Compose stack.
+ * The Gradle dockerCompose plugin manages lifecycle and health waiting.
+ * 
+ * Automatic workflow:
+ *   1. ./gradlew testE2E         # Start stack, run tests, clean up
+ * 
+ * Manual debugging workflow:
+ *   1. ./gradlew e2eComposeUp
+ *   2. ./gradlew testE2E
+ *   3. ./gradlew e2eComposeDown
+ *   4. ./gradlew e2eComposeLogs  # optional
+ * 
+ * The plugin-managed compose stack includes:
+ *   - family-ties-app (containerized application on :8443)
+ *   - postgres (database on :5432)
+ * 
+ * Tests connect to running containers via HTTPS REST calls.
+ */
+
+tasks.named('check') {
+	dependsOn(tasks.named("testComponent"))
+	dependsOn(tasks.named("testArchitecture"))
+	// Note: testContract, testSystem, and testE2E are NOT part of check
+	// docGen runs as part of check (after testComponent) to validate implementation and generate docs
+	// testContract, testSystem, and testE2E run explicitly to validate deployed behavior
+	dependsOn(tasks.named("jacocoTestReport"))
+}
+
+// Configure docGen to run after testComponent as part of check
+afterEvaluate {
+	def docGenTask = tasks.findByName('docGen')
+	if (docGenTask != null) {
+		tasks.named('check').configure {
+			dependsOn docGenTask
+		}
+		docGenTask.dependsOn tasks.named('testComponent')
+	}
+}
+
+tasks.withType(Test).configureEach {
+	useJUnitPlatform()
+	testLogging {
+		events "PASSED", "FAILED", "SKIPPED"
+		exceptionFormat = 'full'
+		showStandardStreams = true
+	}
+	jvmArgs "-javaagent:${configurations.byteBuddyAgent.singleFile}"
+	
+	// Environment variables for tests - MUST be set via .env file or environment
+	// NO defaults to enforce zero-credentials policy
+	// See app/src/testE2E/resources/.env.example for required variables
+	environment 'H2_USERNAME', System.getenv('H2_USERNAME') ?: System.getProperty('H2_USERNAME')
+	environment 'H2_PASSWORD', System.getenv('H2_PASSWORD')
+	environment 'SSL_KEYSTORE_PASSWORD', System.getenv('SSL_KEYSTORE_PASSWORD') ?: System.getProperty('SSL_KEYSTORE_PASSWORD')
+	environment 'POSTGRES_DB', System.getenv('POSTGRES_DB') ?: System.getProperty('POSTGRES_DB')
+	environment 'POSTGRES_USER', System.getenv('POSTGRES_USER') ?: System.getProperty('POSTGRES_USER')
+	environment 'POSTGRES_PASSWORD', System.getenv('POSTGRES_PASSWORD') ?: System.getProperty('POSTGRES_PASSWORD')
+	
+	// Application version and name
+	environment 'PRODUCT_NAME', productName
+	environment 'VERSION', appVersion
+}
+
+// ==============================================================================
+// E2E Test Automatic Lifecycle Management
+// ==============================================================================
+// The testE2E task automatically manages the complete Docker Compose lifecycle:
+//
+// 1. Starts Docker Compose stack via dependsOn(e2eComposeUp)
+//    - Launches postgres:18-alpine on localhost:5432
+//    - Launches familyties/app:e2e on localhost:8443 (HTTPS)
+//
+// 2. Loads non-secret environment variables from app/src/testE2E/resources/.env
+//    - Same .env file used by Docker Compose (via --env-file flag)
+//    - Variables injected into test JVM for REST client configuration
+	//    - Secrets remain environment-only (e.g. SSL_KEYSTORE_PASSWORD, POSTGRES_PASSWORD, H2_PASSWORD)
+//
+// 3. Runs 26 E2E Cucumber scenarios as external REST clients
+//    - Tests connect to containerized app over HTTPS
+//    - Uses real PostgreSQL database (not mocked)
+//
+// 4. Cleans up via finalizedBy(e2eComposeDown) - runs even if tests fail
+//    - Stops containers gracefully
+//    - Removes containers and networks
+//
+// Usage: ./gradlew testE2E
+//
+// This configuration uses afterEvaluate{} to ensure the testE2E task exists
+// (created by the testing suites DSL) before applying dependencies.
+// ==============================================================================
+afterEvaluate {
+	// Configure test dependencies to create a proper testing pipeline:
+	// 1. testSystem depends on testComponent
+	// 2. testContract depends on testComponent (runs in parallel with testSystem)
+	// 3. testE2E stays independent to isolate environment/infrastructure issues
+	// Note: To verify WireMock stubs, run testSystemWiremock (automatic Docker Compose lifecycle)
+	
+	def testSystemTask = tasks.findByName('testSystem')
+	if (testSystemTask != null) {
+		testSystemTask.dependsOn tasks.named('testComponent')
+			testSystemTask.dependsOn tasks.named('validateSystemEnvironment')
+	}
+	
+	def testContractTask = tasks.findByName('testContract')
+	if (testContractTask != null) {
+		testContractTask.dependsOn tasks.named('testComponent')
+	}
+	
+	/*
+	 * WireMock Stub Verification Task
+	 * 
+	 * The testSystemWiremock task verifies consumer-driven contract compliance
+	 * by running system tests against WireMock stubs instead of the real application.
+	 * 
+	 * Automatic workflow (Docker Compose plugin manages lifecycle):
+	 *   ./gradlew testSystemWiremock
+	 * 
+	 * The plugin automatically:
+	 *   1. Starts WireMock container on localhost:8443 with stubs from src/main/resources/wiremock
+	 *   2. Sets FAMILYTIES_BASE_URL to point tests at WireMock
+	 *   3. Runs system test scenarios against the stubs
+	 *   4. Stops and removes WireMock container (even on test failure)
+	 * 
+	 * This ensures frontend teams can develop against stable WireMock contracts
+	 * while backend services are built, with confidence that both honor the same API.
+	 */
+	tasks.register('testSystemWiremock', Test) {
+		group = 'verification'
+		description = 'Run system tests against WireMock stubs (consumer-driven contract verification)'
+		dependsOn tasks.named('validateSystemEnvironment')
+		
+		// Use the same test sources as testSystem
+		testClassesDirs = testing.suites.testSystem.sources.output.classesDirs
+		classpath = testing.suites.testSystem.sources.runtimeClasspath
+		
+		// Configure JUnit and logging
+		useJUnitPlatform()
+		testLogging {
+			events "PASSED", "FAILED", "SKIPPED"
+			exceptionFormat = 'full'
+			showStandardStreams = true
+		}
+		
+		// Byte Buddy agent for mocking
+		jvmArgs "-javaagent:${configurations.byteBuddyAgent.singleFile}"
+		
+		// Point tests at WireMock instead of real application
+		environment 'FAMILYTIES_BASE_URL', 'https://localhost:8443/v1/familyties'
+		
+		// Pass through required credentials
+		environment 'H2_USERNAME', System.getenv('H2_USERNAME') ?: System.getProperty('H2_USERNAME')
+		environment 'H2_PASSWORD', System.getenv('H2_PASSWORD')
+		environment 'SSL_KEYSTORE_PASSWORD', System.getenv('SSL_KEYSTORE_PASSWORD') ?: System.getProperty('SSL_KEYSTORE_PASSWORD')
+		environment 'POSTGRES_DB', System.getenv('POSTGRES_DB') ?: System.getProperty('POSTGRES_DB')
+		environment 'POSTGRES_USER', System.getenv('POSTGRES_USER') ?: System.getProperty('POSTGRES_USER')
+		environment 'POSTGRES_PASSWORD', System.getenv('POSTGRES_PASSWORD') ?: System.getProperty('POSTGRES_PASSWORD')
+		environment 'PRODUCT_NAME', productName
+		environment 'VERSION', appVersion
+		
+		// Docker Compose plugin manages WireMock lifecycle automatically
+		// via dockerCompose.isRequiredBy() configured below
+	}
+	
+	/*
+	 * WireMock OpenAPI Contract Verification Task
+	 * 
+	 * The testContractWiremock task verifies that WireMock stubs conform to the
+	 * OpenAPI specification, ensuring syntactic compliance (contract tests).
+	 * 
+	 * Automatic workflow (Docker Compose plugin manages lifecycle):
+	 *   ./gradlew testContractWiremock
+	 * 
+	 * The plugin automatically:
+	 *   1. Starts WireMock container on localhost:8443 with stubs
+	 *   2. Sets FAMILYTIES_BASE_URL environment variable (for future REST client tests)
+	 *   3. Runs Spring REST Docs contract tests
+	 *   4. Stops and removes WireMock container (even on test failure)
+	 * 
+	 * Note: Current contract tests use MockMvc (controller-layer testing) and don't
+	 * make actual HTTP calls to WireMock. However, they validate API contracts that
+	 * WireMock must implement. Combined with testSystemWiremock, this ensures:
+	 *   - Syntactically correct (matches OpenAPI spec) → testContractWiremock validates spec
+	 *   - Semantically correct (matches behavior) → testSystemWiremock validates WireMock
+	 * 
+	 * Future: If contract tests are refactored to REST clients, they will automatically
+	 * use FAMILYTIES_BASE_URL to test WireMock directly.
+	 */
+	tasks.register('testContractWiremock', Test) {
+		group = 'verification'
+		description = 'Run contract tests with WireMock environment (validates OpenAPI spec + prepares for REST client tests)'
+		dependsOn tasks.named('validateSystemEnvironment')
+		
+		// Use the same test sources as testContract
+		testClassesDirs = testing.suites.testContract.sources.output.classesDirs
+		classpath = testing.suites.testContract.sources.runtimeClasspath
+		
+		// Configure JUnit and logging
+		useJUnitPlatform()
+		testLogging {
+			events "PASSED", "FAILED", "SKIPPED"
+			exceptionFormat = 'full'
+			showStandardStreams = true
+		}
+		
+		// Byte Buddy agent for mocking
+		jvmArgs "-javaagent:${configurations.byteBuddyAgent.singleFile}"
+		
+		// Point tests at WireMock for future REST client tests
+		environment 'FAMILYTIES_BASE_URL', 'https://localhost:8443/v1/familyties'
+		
+		// Pass through required credentials
+		environment 'H2_USERNAME', System.getenv('H2_USERNAME') ?: System.getProperty('H2_USERNAME')
+		environment 'H2_PASSWORD', System.getenv('H2_PASSWORD')
+		environment 'SSL_KEYSTORE_PASSWORD', System.getenv('SSL_KEYSTORE_PASSWORD') ?: System.getProperty('SSL_KEYSTORE_PASSWORD')
+		environment 'POSTGRES_DB', System.getenv('POSTGRES_DB') ?: System.getProperty('POSTGRES_DB')
+		environment 'POSTGRES_USER', System.getenv('POSTGRES_USER') ?: System.getProperty('POSTGRES_USER')
+		environment 'POSTGRES_PASSWORD', System.getenv('POSTGRES_PASSWORD') ?: System.getProperty('POSTGRES_PASSWORD')
+		environment 'PRODUCT_NAME', productName
+		environment 'VERSION', appVersion
+		
+		// Docker Compose plugin manages WireMock lifecycle automatically
+		// via dockerCompose.isRequiredBy() configured below
+	}
+	
+	/*
+	 * Complete WireMock Verification Task
+	 * 
+	 * Runs both semantic (system) and syntactic (contract) verification against WireMock.
+	 * This comprehensive test ensures WireMock is a complete drop-in replacement:
+	 *   - testSystemWiremock: Validates behavior matches real application
+	 *   - testContractWiremock: Validates contract compliance
+	 * 
+	 * Usage: ./gradlew verifyWiremock --no-configuration-cache
+	 */
+	tasks.register('verifyWiremock') {
+		group = 'verification'
+		description = 'Complete WireMock verification: semantic (system) + syntactic (contract) tests'
+		dependsOn tasks.named('testSystemWiremock')
+		dependsOn tasks.named('testContractWiremock')
+	}
+	
+	// ==============================================================================
+	// Docker Compose Plugin Configuration for WireMock
+	// ==============================================================================
+	// Automatic WireMock container management for system test verification
+	dockerCompose {
+		useComposeFiles = [project.parent.file('docker-compose.yml').absolutePath]
+		stopContainers = true  // Stop containers after tests
+		removeContainers = true  // Clean up containers
+		removeVolumes = true  // Clean up volumes
+		startedServices = ['wiremock']  // Only start the wiremock service
+		isRequiredBy(tasks.named('testSystemWiremock'))
+		isRequiredBy(tasks.named('testContractWiremock'))
+	}
+	
+	def testE2ETask = tasks.findByName('testE2E')
+	if (testE2ETask != null) {
+		// Load environment variables from .env file
+		def e2eEnvFile = file('src/testE2E/resources/.env')
+		if (e2eEnvFile.exists()) {
+			def envVars = loadEnvFile(e2eEnvFile)
+			e2eManagedEnvKeys.each { key ->
+				def value = envVars[key]
+				if (value) {
+				testE2ETask.environment key, value
+				}
+			}
+		}
+
+		// SSL_KEYSTORE_PASSWORD is environment-only and never read from .env files
+		testE2ETask.environment 'SSL_KEYSTORE_PASSWORD', System.getenv('SSL_KEYSTORE_PASSWORD')
+		// POSTGRES_PASSWORD is environment-only and never read from .env files
+		testE2ETask.environment 'POSTGRES_PASSWORD', System.getenv('POSTGRES_PASSWORD')
+		// H2_PASSWORD is environment-only and never read from .env files
+		testE2ETask.environment 'H2_PASSWORD', System.getenv('H2_PASSWORD')
+
+		// Validate E2E env consistency before Docker Compose lifecycle / tests
+		testE2ETask.dependsOn tasks.named('validateE2EEnvironment')
+	}
+
+	dockerCompose {
+		e2e {
+			useComposeFiles = [project.file('src/testE2E/resources/docker-compose.e2e.yml').absolutePath]
+			startedServices = ['postgres', 'family-ties-app']
+			stopContainers = true
+			removeContainers = true
+			removeVolumes = true
+			isRequiredBy(tasks.named('testE2E'))
+		}
+	}
+
+	tasks.named('e2eComposeUp').configure {
+		dependsOn tasks.named('validateE2EEnvironment')
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = "UTF-8"
+	options.compilerArgs += ["-parameters"]
+}
+
+// QA task: runs a full verification pipeline in order
+tasks.register('QA') {
+	group = 'verification'
+	description = 'Full QA: build, verify wiremock, contract, system and e2e tests'
+	notCompatibleWithConfigurationCache("QA task requires proper Docker container lifecycle management which is not compatible with configuration cache")
+
+	// Declare all verification steps as dependencies
+	dependsOn 'build', 'testContractWiremock', 'testSystemWiremock', 'composeDown', 'testContract', 'testSystem', 'testE2E'
+}
+// Configure QA task ordering after project evaluation
+afterEvaluate {
+	tasks.named('testContractWiremock').configure { mustRunAfter 'build' }
+	tasks.named('testSystemWiremock').configure { mustRunAfter 'testContractWiremock' }
+	tasks.named('composeDown').configure { mustRunAfter 'testSystemWiremock' }
+	tasks.named('testContract').configure { mustRunAfter 'composeDown' }
+	tasks.named('testSystem').configure { mustRunAfter 'testContract' }
+	tasks.named('testE2E').configure { mustRunAfter 'testSystem' }
+}
+
+jacoco {
+	toolVersion = ftlibs.versions.jacoco.get()
+}
+
+def unitTest = tasks.named("test")
+def allTestTasks = tasks.withType(Test)
+
+tasks.named("jacocoTestReport") {
+	dependsOn(unitTest)
+	classDirectories.setFrom(layout.buildDirectory.dir("classes/java/main"))
+	sourceDirectories.setFrom(layout.projectDirectory.dir("src/main/java"))
+	reports {
+		xml.required = true
+		html.required = true
+		html.outputLocation = layout.buildDirectory.dir("reports/jacoco/test")
+	}
+}
+
+tasks.named("jacocoTestCoverageVerification") {
+	dependsOn(unitTest)
+	classDirectories.setFrom(layout.buildDirectory.dir("classes/java/main"))
+	sourceDirectories.setFrom(layout.projectDirectory.dir("src/main/java"))
+	executionData(unitTest.get().extensions.getByType(JacocoTaskExtension).destinationFile)
+	violationRules {
+		rule {
+			limit {
+				counter = "LINE"
+				value = "COVEREDRATIO"
+				minimum = 1.0  // 100% coverage (Lombok @Generated automatically excluded)
+			}
+		}
+	}
+}
+
+tasks.register("jacocoAllTestReport", JacocoReport) {
+    dependsOn(unitTest)
+
+    executionData.setFrom(unitTest.map { it.extensions.getByType(JacocoTaskExtension).destinationFile })
+    sourceDirectories.setFrom(layout.projectDirectory.dir("src/main/java"))
+    classDirectories.setFrom(layout.buildDirectory.dir("classes/java/main"))
+
+    reports {
+        xml.required = true
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir("reports/jacoco/all")
+    }
+}
+
+tasks.named("testContract") {
+	outputs.dir(snippetsDir)
+}
+
+tasks.named("asciidoctor", AsciidoctorTask) {
+	dependsOn(tasks.named("docGen"))
+	configurations("asciidoctorExt")
+	inputs.dir(snippetsDir)
+	baseDirFollowsSourceFile()
+	sourceDir = file("src/docs/asciidoc")
+	outputDir = layout.buildDirectory.dir("docs/asciidoc").get().asFile
+	attributes("snippets": snippetsDir.get().asFile)
+	notCompatibleWithConfigurationCache("Asciidoctor plugin 4.0.5 is not configuration-cache safe; run docs without CC or upgrade plugin when CC support lands")
+}
+
+tasks.register("docs") {
+	group = "documentation"
+	description = "Generates project documentation via Asciidoctor."
+	notCompatibleWithConfigurationCache("Docs wrapper runs Asciidoctor, which is not configuration-cache safe")
+	dependsOn(tasks.named("asciidoctor"))
+}
+
+tasks.named("check") {
+	dependsOn(tasks.named("jacocoTestCoverageVerification"))
+	dependsOn(tasks.named("jacocoAllTestReport"))
+}
+
+dependencyCheck {
+	nvd.apiKey = System.getenv('NVD_APIKEY_SEDR')
+	nvd.delay = 16000
+	analyzers.assemblyEnabled = false
+}
+
+tasks.cyclonedxDirectBom {
+	includeConfigs = ["runtimeClasspath", "compileClasspath"]
+	skipConfigs = [".*test.*", ".*Test.*"]
+
+	schemaVersion = Version.VERSION_16
+	componentName = "Family-Ties"
+	projectType = Component.Type.APPLICATION
+
+	def entity = new OrganizationalEntity()
+	entity.setName("Arc-E-Tect")
+
+	def contact = new OrganizationalContact()
+	contact.setName("Arc-E-Tect")
+	contact.setEmail("iwan@arc-e-tect.com")
+
+	entity.addContact(contact)
+
+	organizationalEntity = entity
+}
+
+check.dependsOn cyclonedxDirectBom
+check.dependsOn generateLicenseReport
+
+ext {
+	productName = project.findProperty('productName') ?: 'Family Ties'
+	appVersion = project.version
+}
+
+bootJar {
+	manifest {
+		attributes(
+				'Implementation-Title'  : productName,
+				'Implementation-Version': appVersion,
+				'Built-By'              : System.properties['user.name'],
+				'Build-Timestamp'       : new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(new Date()),
+				'Created-By'            : "Gradle ${gradle.gradleVersion}",
+				'Build-Jdk'             : "${System.properties['java.version']} (${System.properties['java.vendor']} ${System.properties['java.vm.version']})",
+				'Build-OS'              : "${System.properties['os.name']} ${System.properties['os.arch']} ${System.properties['os.version']}"
+		)
+	}
+}
+
+springBoot {
+	buildInfo {
+		properties {
+			name = "${project.name}"
+			additional = [
+					by: System.properties['user.name'],
+					continuousIntegration: System.getenv('CI') ? true: false,
+			]
+		}
+	}
+}
+
+tasks.named('bootRun') {
+	environment 'PRODUCT_NAME', productName
+	environment 'VERSION', appVersion
+	environment 'SPRING_PROFILES_ACTIVE', System.getenv('SPRING_PROFILES_ACTIVE') ?: 'dev'
+}

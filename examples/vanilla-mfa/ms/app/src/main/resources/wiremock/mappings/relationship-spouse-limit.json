@@ -1,0 +1,16 @@
+{
+  "priority": 1,
+  "name": "Spouse limit reached",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/familyties/relationships",
+    "bodyPatterns": [
+      { "matchesJsonPath": "$[?(@.fromFirstName == 'Husband' && @.fromLastName == 'Smith' && @.toFirstName == 'Wife2' && @.toLastName == 'Brown' && @.type == 'spouse')]" }
+    ]
+  },
+  "response": {
+    "status": 409,
+    "body": "A person can only have one spouse",
+    "headers": { "Content-Type": "text/plain" }
+  }
+}

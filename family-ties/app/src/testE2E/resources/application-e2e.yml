@@ -1,0 +1,41 @@
+# E2E Test Configuration
+# Tests run as REST clients against a Docker Compose stack
+# managed by the Gradle dockerCompose plugin.
+#
+# Standard workflow:
+#   ./gradlew testE2E
+#
+# Manual debugging workflow:
+#   ./gradlew e2eComposeUp
+#   ./gradlew testE2E
+#   ./gradlew e2eComposeDown
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+
+server:
+  ssl:
+    enabled: true
+    key-store: classpath:ssl/keystore.p12
+    key-store-password: ${SSL_KEYSTORE_PASSWORD}
+    key-store-type: PKCS12
+    key-alias: familyties
+  port: ${SERVER_PORT:8443}
+
+app:
+  base-url: https://localhost:${SERVER_PORT:8443}

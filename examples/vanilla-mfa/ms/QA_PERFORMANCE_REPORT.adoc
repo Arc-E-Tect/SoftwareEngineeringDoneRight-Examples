@@ -1,0 +1,233 @@
+= Family Ties QA Performance Report
+
+*Generated:* 2026-01-25
+*Gradle Version:* 9.3.0
+*Java Version:* 21.0.8
+*Spring Boot:* 4.0.2
+*Platform:* macOS
+
+== Executive Summary
+
+[cols="1,1,1,1,1,2",options="header"]
+|===
+| Scenario | Avg Real Time | User Time Range | Sys Time Range | Tasks | Notes
+
+| Clean + No Daemon
+| *55.8s* (313.7s first run)
+| 102-120s
+| 6.1-8.7s
+| 35 tasks
+| First run 5.6x slower due to Docker pulls
+
+| Incremental + No Daemon
+| *57.0s*
+| 109-113s
+| 5.9-6.9s
+| 34 tasks
+| 21 executed, 13 up-to-date
+
+| Incremental + Daemon
+| *52.1s*
+| 0.83-0.92s
+| 0.10-0.11s
+| 34 tasks
+| Best performance
+|===
+
+*Key Finding:* With configuration cache disabled, QA task performance is consistent at ~50-60 seconds regardless of clean/incremental builds. The daemon provides minimal benefit (~5s faster) since most time is spent in Docker operations and test execution, not JVM startup.
+
+*First Run Anomaly:* The very first clean run took 5m 13s due to Docker image downloads and layer caching. Subsequent runs are consistently 55-60 seconds.
+
+== Test Configuration
+
+=== Commands Executed
+
+NOTE: Configuration cache must be disabled for QA task (use `--no-configuration-cache`)
+
+==== Clean Build (3 runs)
+[source,bash]
+----
+./gradlew --stop
+./gradlew clean QA --no-daemon --no-configuration-cache
+----
+
+Results:
+- Run 1: 313.72s (5m 13s) - *First-time Docker image pulls*
+- Run 2: 56.99s
+- Run 3: 55.45s
+- *Average (excluding first):* 56.22s
+
+==== Incremental Build, No Daemon (3 runs)
+[source,bash]
+----
+./gradlew --stop
+./gradlew QA --no-daemon --no-configuration-cache
+----
+
+Results:
+- Run 1: 56.37s
+- Run 2: 60.13s
+- Run 3: 54.64s
+- *Average:* 57.05s
+
+==== Incremental Build, With Daemon (3 runs)
+[source,bash]
+----
+./gradlew QA --no-configuration-cache
+----
+
+Results:
+- Run 1: 54.86s
+- Run 2: 50.24s
+- Run 3: 51.16s
+- *Average:* 52.09s
+
+=== QA Pipeline Tasks
+
+The QA task executes the following verification pipeline in order:
+
+. build — Compiles all code and generates Spring REST Docs
+. testContractWiremock — Verifies WireMock contract conformance (with WireMock container)
+. testSystemWiremock — System tests against WireMock (with WireMock container)
+. composeDown — Stops and cleans up WireMock Docker containers
+. testContract — Spring REST Docs contract tests (H2 in-memory)
+. testSystem — System tests with Testcontainers (PostgreSQL)
+. testE2E — End-to-end tests with full Docker Compose stack (app + PostgreSQL)
+
+=== Critical Infrastructure
+
+- WireMock Container: Port 8443 (HTTPS) and 8089 (HTTP)
+- E2E Application Container: Port 8443 (HTTPS)
+- PostgreSQL Container: Port 5432
+- Container Cleanup: Automatic via Docker Compose plugin and explicit `composeDown` task
+
+== Detailed Analysis
+
+=== Why Configuration Cache Is Disabled
+
+The QA task explicitly disables configuration cache because:
+
+. Docker Container Lifecycle: The task depends on proper sequencing of Docker Compose operations (`composeUp` → tests → `composeDown`)
+. Port Conflicts: WireMock containers (port 8443) must be fully stopped before E2E tests start their containers on the same port
+. Task Up-to-Date Checks: With configuration cache, Gradle aggressively caches task outputs, causing `composeDown` to be skipped when WireMock tests are marked as up-to-date
+. Simplicity: Disabling configuration cache keeps the QA task simple and predictable without needing complex workarounds
+
+=== Performance Characteristics
+
+==== Clean vs Incremental (No Daemon)
+
+- Clean: 56.2s average (35 tasks: 27 executed, 8 from cache)
+- Incremental: 57.0s average (34 tasks: 21 executed, 13 up-to-date)
+- Difference: Negligible (~1 second)
+
+==== Daemon vs No Daemon (Incremental)
+
+- No Daemon: 57.0s average (user time: 109-113s)
+- With Daemon: 52.1s average (user time: 0.83-0.92s)
+- Difference: ~5 seconds (9% faster)
+
+=== First Run Anomaly
+
+The very first clean run took *5m 13s* (313.72 seconds) — *5.6x slower* than subsequent runs. This is due to Docker image downloads, initial Docker layer caching, and first-time dependency resolution.
+
+== Key Findings
+
+=== Docker Container Management
+
+The QA task properly manages Docker containers through task dependencies:
+
+. WireMock Phase: `testContractWiremock` and `testSystemWiremock` use WireMock on port 8443
+. Cleanup Phase: `composeDown` stops and removes WireMock containers
+. E2E Phase: `testE2E` starts application container on port 8443
+
+----
+[.source]
+----
+build → testContractWiremock → testSystemWiremock → composeDown → testContract → testSystem → testE2E
+----
+
+This ensures no port conflicts between WireMock and E2E containers.
+
+=== Configuration Cache Trade-off
+
+Decision: Disable configuration cache for QA task
+
+Reasoning:
+- Configuration cache optimizes task execution by caching task outputs
+- When WireMock tests are up-to-date, Gradle skips `composeDown`, leaving containers running
+- This causes port 8443 conflicts when E2E tests try to start
+- Workarounds (outputs.upToDateWhen, doFirst hooks) add complexity
+- Performance impact is minimal: configuration cache would save ~2-3 seconds on incremental builds
+- Simplicity and reliability trump marginal performance gains
+
+Implementation: Mark the QA task incompatible with configuration cache using `notCompatibleWithConfigurationCache()` in `build.gradle`.
+
+== Recommendations
+
+=== For Development
+
+- Quick verification: `./gradlew QA --no-configuration-cache` (~52s with daemon)
+- Final verification: `./gradlew clean QA --no-daemon --no-configuration-cache` (~56s)
+- Run individual suites during active development:
+[source,bash]
+----
+./gradlew testContract testSystem  # Skip Docker-dependent tests (~20s)
+----
+
+=== For CI/CD
+
+- Always use: `./gradlew clean QA --no-daemon --no-configuration-cache`
+- Expected time: 55-60 seconds (after first run with image downloads)
+- First run: Allow 6-8 minutes for Docker image downloads
+- Disable configuration cache to ensure consistent behavior
+- Consider pre-warming Docker images in CI/CD environment
+
+== Appendix: Task Dependencies
+
+=== QA Task Configuration (build.gradle)
+
+[source,gradle]
+----
+// QA task: runs a full verification pipeline in order
+// Note: Configuration cache is not supported for QA task - use --no-configuration-cache
+tasks.register('QA') {
+    group = 'verification'
+    description = 'Full QA: build, verify wiremock, contract, system and e2e tests. Use with --no-configuration-cache'
+    dependsOn 'build', 'testContractWiremock', 'testSystemWiremock', 'composeDown', 'testContract', 'testSystem', 'testE2E'
+}
+
+afterEvaluate {
+    tasks.named('testContractWiremock').configure { mustRunAfter 'build' }
+    tasks.named('testSystemWiremock').configure { mustRunAfter 'testContractWiremock' }
+    tasks.named('composeDown').configure { mustRunAfter 'testSystemWiremock' }
+    tasks.named('testContract').configure { mustRunAfter 'composeDown' }
+    tasks.named('testSystem').configure { mustRunAfter 'testContract' }
+    tasks.named('testE2E').configure { mustRunAfter 'testSystem' }
+}
+----
+
+== Conclusion
+
+The QA pipeline successfully executes all verification stages in *52-60 seconds* with proper Docker container management and no port conflicts.
+
+*Key Insights:*
+
+. Configuration cache is incompatible with the QA task due to Docker container lifecycle requirements
+. Performance is consistent (~55s) regardless of clean vs incremental builds
+. Daemon provides minimal benefit (~9% faster) since most time is in tests and Docker operations
+. First run requires 5-6 minutes for Docker image downloads, then stabilizes at 55-60 seconds
+. The task is simple and maintainable with straightforward dependency ordering
+
+Recommended command for all scenarios:
+[source,bash]
+----
+./gradlew QA
+----
+
+For absolutely clean builds (pre-commit, CI/CD):
+[source,bash]
+----
+./gradlew clean QA --no-daemon
+----
+
+NOTE: Configuration cache is automatically disabled when QA is invoked.

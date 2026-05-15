@@ -1,0 +1,20 @@
+{
+  "id": "6fba5da5-1bf7-4464-8ac1-cb033d7737f9",
+  "request": {
+    "urlPath": "/",
+    "method": "GET",
+    "headers": {
+      "Accept": {
+        "equalTo": "application/json"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": "{\n  \"versionName\": \"AuthServer\",\n  \"versionCode\": 1.0\n}\n",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "uuid": "6fba5da5-1bf7-4464-8ac1-cb033d7737f9"
+}

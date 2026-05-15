@@ -1,0 +1,20 @@
+{
+  "id": "bec57936-961a-4fe2-a366-8dc8933d4878",
+  "request": {
+    "urlPath": "/actuator/health",
+    "method": "GET",
+    "headers": {
+      "Accept": {
+        "equalTo": "application/json"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": "{\"status\":\"UP\"}",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "uuid": "bec57936-961a-4fe2-a366-8dc8933d4878"
+}

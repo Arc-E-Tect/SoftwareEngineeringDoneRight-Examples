@@ -1,0 +1,30 @@
+pluginManagement {
+	repositories {
+		gradlePluginPortal()
+		mavenCentral()
+	}
+}
+
+plugins {
+	id "de.fayard.refreshVersions" version "0.60.6"
+}
+
+dependencyResolutionManagement {
+	repositories {
+		mavenCentral()
+	}
+	versionCatalogs {
+		create("ftlibs") {
+			from(files("gradle/libs.versions.toml"))
+		}
+	}
+}
+
+refreshVersions {
+	rejectVersionIf {
+		candidate.stabilityLevel.isLessStableThan(current.stabilityLevel)
+	}
+}
+
+rootProject.name = 'family-ties'
+include('app')

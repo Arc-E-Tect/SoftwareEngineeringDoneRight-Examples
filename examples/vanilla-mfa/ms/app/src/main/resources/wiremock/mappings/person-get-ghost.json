@@ -1,0 +1,10 @@
+{
+  "name": "Get persons not found",
+  "request": {
+    "method": "GET",
+    "urlPath": "/v1/familyties/lastnames/Ghost"
+  },
+  "response": {
+    "status": 404
+  }
+}

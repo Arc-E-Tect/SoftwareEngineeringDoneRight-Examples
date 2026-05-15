@@ -1,0 +1,151 @@
+= Appendix: How to Review an MFA Implementation
+:sectnums:
+:toclevels: 3
+:toc:
+
+This guide provides a structured approach for senior engineers, architects, and auditors to review an implementation of the Micro-Frontend Adapter (MFA) pattern. It focuses on architectural correctness, security posture, domain alignment, and long-term maintainability.
+
+The review process is divided into five domains:
+
+1. Architecture & Boundaries
+2. Security & Zero-Trust Alignment
+3. Domain-Driven Design (DDD) Alignment
+4. Operational & Versioning Practices
+5. Anti-Pattern Detection (Red Flags)
+
+[[review-architecture]]
+== 1. Architecture & Boundaries
+
+=== 1.1 Verify Cardinalities
+- [ ] Each MFE has exactly one MFA.
+- [ ] Each MFA serves exactly one MFE.
+- [ ] Each MFA communicates with exactly one MS.
+- [ ] Each MS may serve multiple MFAs (multi-channel support).
+- [ ] No MFA communicates with multiple MSs.
+- [ ] No MFE communicates directly with an MS.
+
+=== 1.2 Verify Hexagonal Symmetry
+- [ ] MFA implements ports and adapters cleanly.
+- [ ] MFA has no domain logic.
+- [ ] MFA mirrors the MS boundary (translation, validation, shaping).
+- [ ] MFA is independently deployable.
+
+=== 1.3 Verify Frontend ACL Boundaries
+- [ ] MFA forms part of the Frontend Anti-Corruption Layer.
+- [ ] No backend domain concepts leak into the MFE.
+- [ ] No cross-context calls occur between MFAs.
+- [ ] All contract translation happens in the MFA, not the MFE.
+
+[[review-security]]
+== 2. Security & Zero-Trust Alignment
+
+=== 2.1 API Gateway Controls
+- [ ] AG validates API keys per MFE.
+- [ ] AG strips API keys before forwarding.
+- [ ] AG adds a trusted “validated API key” header.
+- [ ] AG enforces scope (read/write/audit).
+- [ ] AG exposes only outer-domain endpoints.
+
+=== 2.2 mTLS Enforcement
+- [ ] AG → MFA uses mTLS.
+- [ ] MFA → MS uses mTLS.
+- [ ] Certificates are rotated and stored securely.
+- [ ] MFA rejects non-mTLS traffic.
+
+=== 2.3 Token Handling
+- [ ] MFA swaps session cookie → user token.
+- [ ] MFA validates token signature, issuer, audience.
+- [ ] MFA obtains inner token when RBAC/ABAC is externalized.
+- [ ] Inner token is never exposed to the MFE.
+- [ ] MS validates RBAC/ABAC claims.
+
+=== 2.4 Zero-Trust Principles
+- [ ] Authentication at every hop.
+- [ ] Authorization at every hop.
+- [ ] No implicit trust between components.
+- [ ] No direct access to inner domain from outer domain.
+
+[[review-ddd]]
+== 3. Domain-Driven Design (DDD) Alignment
+
+=== 3.1 Bounded Context Integrity
+- [ ] Each MFE/MFA/MS trio represents one bounded context.
+- [ ] Ubiquitous language is consistent across MFE, MFA, MS.
+- [ ] No cross-context domain concepts appear in the MFE.
+- [ ] No MFA calls an MS outside its bounded context.
+
+=== 3.2 Anti-Corruption Layer Behavior
+- [ ] MFA performs translation between UI model and domain model.
+- [ ] MFA hides backend evolution from the MFE.
+- [ ] MFA prevents domain leakage into the UI.
+
+=== 3.3 BDD Alignment
+- [ ] BDD scenarios use the bounded context’s ubiquitous language.
+- [ ] MFA boundaries align with BDD scenario boundaries.
+- [ ] No scenario spans multiple bounded contexts.
+
+[[review-ops]]
+== 4. Operational & Versioning Practices
+
+=== 4.1 Independent Versioning
+- [ ] MFE versions independently (SemVer).
+- [ ] MFA versions independently with explicit API versions (`/v1/`, `/v2/`).
+- [ ] MS versions independently.
+- [ ] MFA absorbs MS contract changes.
+
+=== 4.2 Backward Compatibility
+- [ ] MFA supports at least one deprecated version during migrations.
+- [ ] MS changes do not break MFAs.
+- [ ] MFA changes do not break MFEs.
+
+=== 4.3 Observability
+- [ ] Distributed tracing is enabled (AG → MFA → MS).
+- [ ] Logs include identity, scope, and correlation IDs.
+- [ ] Sensitive data is masked.
+
+=== 4.4 Deployment & CI/CD
+- [ ] MFEs, MFAs, and MSs deploy independently.
+- [ ] Security checks run in CI/CD.
+- [ ] Secrets are managed via a secure vault.
+
+[[review-antipatterns]]
+== 5. Anti-Pattern Detection (Red Flags)
+
+=== 5.1 Architectural Red Flags
+- [ ] MFA calling multiple MSs (BFF drift).
+- [ ] MFE calling MS directly (boundary bypass).
+- [ ] MFA containing domain logic (adapter bloat).
+- [ ] MFA performing orchestration (workflow creep).
+- [ ] MFA constructing view models (UI logic leakage).
+
+=== 5.2 Security Red Flags
+- [ ] Missing mTLS between AG ↔ MFA or MFA ↔ MS.
+- [ ] API keys visible in client-side code.
+- [ ] Inner token exposed to the MFE.
+- [ ] MFA trusting headers without mTLS.
+- [ ] MS accepting requests from anything other than MFA.
+
+=== 5.3 DDD Red Flags
+- [ ] Mixed ubiquitous languages in the MFE.
+- [ ] MFA translating between multiple bounded contexts.
+- [ ] MS exposing endpoints outside its domain.
+
+=== 5.4 Operational Red Flags
+- [ ] MFE, MFA, and MS must be deployed together (tight coupling).
+- [ ] No versioning strategy for MFA APIs.
+- [ ] No contract tests between MFA and MS.
+- [ ] No observability across layers.
+
+[[review-summary]]
+== Summary
+
+A correct MFA implementation should demonstrate:
+
+- Clean architectural boundaries
+- Strong Zero-Trust alignment
+- Strict DDD bounded context isolation
+- Independent versioning and deployment
+- No signs of BFF-like aggregation or orchestration
+- Clear, auditable security and operational controls
+
+This guide provides a structured framework for evaluating whether an implementation adheres to the MFA pattern as defined in the whitepaper.

@@ -1,0 +1,56 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:mfe-adapter-testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  # Disable Kafka auto-configuration; tests use embedded Kafka where needed
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers:localhost:9092}
+
+server:
+  port: 0   # Random port for tests
+  ssl:
+    enabled: false
+
+mfe-adapter:
+  session:
+    cookie-name: MFESESSION
+    ttl-minutes: 30
+    secure: false
+    http-only: true
+    same-site: Strict
+    cleanup-interval-ms: 300000
+
+  api-gateway:
+    validated-header: X-API-Key-Validated
+    validated-value: "true"
+
+  oidc-provider:
+    issuer-uri: http://localhost:8090
+    realm: test
+    client-id: mfe-adapter-test
+    client-secret: test-secret
+
+  authorization-service:
+    base-url: http://localhost:8181
+    token-swap-path: /token/swap
+
+  microservice:
+    base-url: http://localhost:8082
+    context-path: /api
+
+  mtls:
+    enabled: false
+
+  kafka:
+    reference-data:
+      topic-pattern: "reference-data\\..*"
+    consumer:
+      group-id: mfe-adapter-reference-data-test

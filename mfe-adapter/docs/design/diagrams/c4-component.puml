@@ -1,0 +1,67 @@
+@startuml c4-component
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title MFA Template — C4 Component (MFA Spring Boot App)
+
+System_Ext(ag, "API Gateway")
+System_Ext(kafka, "Kafka")
+System_Ext(ms, "Microservice")
+System_Ext(keycloak, "KeyCloak")
+System_Ext(ias, "IAS")
+ContainerDb(h2, "H2 In-Memory DB")
+
+Container_Boundary(mfaApp, "MFA Spring Boot App") {
+
+    ' ── Infrastructure – Inbound ────────────────────────────────────────
+    Component(filter, "ApiKeyValidationFilter", "Spring Filter", "Rejects requests missing the X-API-Key-Validated header.")
+    Component(proxyCtrl, "MfaProxyController", "Spring MVC Controller", "Receives all proxied API calls from the AG.")
+    Component(authCtrl, "AuthenticationController", "Spring MVC Controller", "Handles /auth/login, /auth/callback, /auth/logout.")
+    Component(kafkaConsumer, "ReferenceDataEventConsumer", "Spring Kafka Listener", "Subscribes to reference-data Kafka topics by pattern.")
+
+    ' ── Application ─────────────────────────────────────────────────────
+    Component(handleSvc, "MfaRequestApplicationService", "Spring Service",  "Orchestrates: session lookup → inner-token swap → SPI validation → transform → forward.")
+    Component(authSvc, "AuthenticationApplicationService", "Spring Service", "Manages OAuth2 code exchange, session lifecycle, logout.")
+    Component(refDataSvc, "ReferenceDataApplicationService", "Spring Service", "Routes CREATE/UPDATE/DELETE events to the cache.")
+
+    ' ── Domain SPI ──────────────────────────────────────────────────────
+    Component(spi, "SPI Extension Points", "Interfaces", "RequestValidator, RequestTransformer, ResponseTransformer —\nimplemented by the consuming team.")
+
+    ' ── Infrastructure – Outbound ────────────────────────────────────────
+    Component(msAdapter, "MicroserviceRestClientAdapter", "WebClient Adapter", "Forwards proxied requests to the MS with mTLS and inner-token Bearer.")
+    Component(iasAdapter, "IasAdapter", "WebClient Adapter", "Calls IAS to swap user token for inner token.")
+    Component(kcAdapter, "KeyCloakAdapter", "WebClient Adapter", "Exchanges authorization code, revokes tokens via KeyCloak OIDC.")
+    Component(sessionAdapter, "SessionStoreAdapter", "JPA Adapter", "Saves/retrieves sessions in H2; runs scheduled expiry cleanup.")
+    Component(refDataAdapter, "ReferenceDataStoreAdapter", "JPA Adapter", "Persists reference-data entries in H2.")
+}
+
+' Inbound wiring
+Rel(ag, filter, "HTTP request", "HTTPS mTLS")
+Rel(filter, proxyCtrl, "passes through")
+Rel(filter, authCtrl, "passes through")
+Rel(kafka, kafkaConsumer, "reference-data events")
+
+' Controller → Service
+Rel(proxyCtrl, handleSvc, "handle(ProxiedRequest)")
+Rel(authCtrl, authSvc, "authenticate / logout")
+Rel(kafkaConsumer, refDataSvc, "process(event)")
+
+' Service → SPI
+Rel(handleSvc, spi, "validates & transforms")
+
+' Service → outbound adapters
+Rel(handleSvc, msAdapter, "forward(request, innerToken)")
+Rel(handleSvc, iasAdapter, "swapForInnerToken(userToken)")
+Rel(handleSvc, sessionAdapter, "findById / save")
+Rel(authSvc, kcAdapter, "exchangeCode / revokeToken")
+Rel(authSvc, sessionAdapter, "save / deleteById")
+Rel(refDataSvc, refDataAdapter, "upsert / delete")
+
+' Outbound → external
+Rel(msAdapter, ms, "REST mTLS", "HTTPS")
+Rel(iasAdapter, ias, "token swap", "HTTPS mTLS")
+Rel(kcAdapter, keycloak, "OIDC endpoints", "HTTPS")
+Rel(sessionAdapter, h2, "JPA", "JDBC")
+Rel(refDataAdapter, h2, "JPA", "JDBC")
+@enduml

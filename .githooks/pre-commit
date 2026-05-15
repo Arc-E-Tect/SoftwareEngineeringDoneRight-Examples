@@ -6,7 +6,7 @@ cd "$repo_root"
 
 changed_manifests=$(git diff --cached --name-only --diff-filter=ACM | grep -E 'package(-lock)?\.json$' || true)
 changed_workflows=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^\.github/workflows/.*\.ya?ml$' || true)
-staged_keystores=$(git diff --cached --name-only --diff-filter=ACM | grep -Ei '\.(p12|pfx|jks|keystore)$' || true)
+staged_keystores=$(git diff --cached --name-only --diff-filter=ACM | grep -Ei '\.\(p12|pfx|jks|ks|keystore|truststore\)$' || true)
 bom_hex="efbbbf"
 failed=0
 
