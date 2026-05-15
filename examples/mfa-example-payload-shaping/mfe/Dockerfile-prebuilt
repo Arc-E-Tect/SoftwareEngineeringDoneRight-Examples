@@ -1,0 +1,19 @@
+# Pre-built image for Vanilla MFE Angular application (payload-shaping example)
+# Requires: dist/vanilla-mfe/browser/ must exist on the host before building.
+# Build locally first: npm ci && npm run build
+# Then run: docker compose -f docker-compose.prebuilt.yml up --build
+FROM nginx:1.27-alpine AS runtime
+
+# Remove default nginx config
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy custom nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy the pre-built Angular dist from the host build output
+COPY dist/vanilla-mfe/browser /usr/share/nginx/html
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD wget -q -O /dev/null http://localhost/ || exit 1

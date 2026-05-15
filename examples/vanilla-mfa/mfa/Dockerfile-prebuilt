@@ -1,0 +1,29 @@
+# Pre-built image for Vanilla MFA application
+# Requires: build/libs/vanilla-mfa-*.jar must exist on the host before building.
+# Build locally first: ./gradlew bootJar -x test --no-daemon
+# Then run: docker compose -f docker-compose.prebuilt.yml up --build
+FROM eclipse-temurin:21-jre AS runtime
+WORKDIR /app
+
+# Install curl for health checks
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user
+RUN groupadd -r vanilla-mfa && useradd -r -g vanilla-mfa vanilla-mfa
+
+# Copy the pre-built jar from the host build output
+COPY build/libs/vanilla-mfa-*.jar app.jar
+
+# Change ownership
+RUN chown -R vanilla-mfa:vanilla-mfa /app
+
+# Switch to non-root user
+USER vanilla-mfa
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+# Run the application with the vanilla profile
+ENTRYPOINT ["java", "-Dspring.profiles.active=vanilla", "-jar", "/app/app.jar"]
