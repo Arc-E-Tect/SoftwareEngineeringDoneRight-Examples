@@ -1,0 +1,5 @@
+# Pre-built context: exclude source code and node_modules; keep dist/
+node_modules/
+src/
+out-tsc/
+.angular/
