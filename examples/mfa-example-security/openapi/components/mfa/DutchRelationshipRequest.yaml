@@ -1,0 +1,28 @@
+type: object
+required:
+  - vanVoornaam
+  - vanAchternaam
+  - naarVoornaam
+  - naarAchternaam
+  - soort
+properties:
+  vanVoornaam:
+    type: string
+    pattern: "^[a-zA-Z0-9\\s'-]+$"
+    example: Jan
+  vanAchternaam:
+    type: string
+    pattern: "^[a-zA-Z0-9\\s'-]+$"
+    example: Smit
+  naarVoornaam:
+    type: string
+    pattern: "^[a-zA-Z0-9\\s'-]+$"
+    example: Marie
+  naarAchternaam:
+    type: string
+    pattern: "^[a-zA-Z0-9\\s'-]+$"
+    example: Smit
+  soort:
+    type: string
+    pattern: "^[a-z]+$"
+    example: parent

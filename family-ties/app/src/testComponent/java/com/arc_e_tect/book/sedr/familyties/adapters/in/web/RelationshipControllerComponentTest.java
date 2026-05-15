@@ -1,4 +1,4 @@
-package com.arc_e_tect.book.sedr.familyties.adapters.in.web;
+package com.arc_e_tect.book.sedr.familyties.adapters.inbound.web;
 
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.Person;
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.Relationship;

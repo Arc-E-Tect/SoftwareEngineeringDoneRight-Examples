@@ -1,10 +1,10 @@
 package com.arc_e_tect.examples.familyties.application;
 
-import com.arc_e_tect.examples.familyties.adapters.in.web.FamilyController;
-import com.arc_e_tect.examples.familyties.adapters.in.web.RelationshipController;
-import com.arc_e_tect.examples.familyties.adapters.in.web.RestExceptionHandler;
-import com.arc_e_tect.examples.familyties.adapters.in.web.dto.PersonRequest;
-import com.arc_e_tect.examples.familyties.adapters.in.web.dto.RelationshipRequest;
+import com.arc_e_tect.examples.familyties.adapters.inbound.web.FamilyController;
+import com.arc_e_tect.examples.familyties.adapters.inbound.web.RelationshipController;
+import com.arc_e_tect.examples.familyties.adapters.inbound.web.RestExceptionHandler;
+import com.arc_e_tect.examples.familyties.adapters.inbound.web.dto.PersonRequest;
+import com.arc_e_tect.examples.familyties.adapters.inbound.web.dto.RelationshipRequest;
 import com.arc_e_tect.examples.familyties.application.common.ConflictException;
 import com.arc_e_tect.examples.familyties.application.common.NotFoundException;
 import com.arc_e_tect.examples.familyties.application.domain.model.Person;

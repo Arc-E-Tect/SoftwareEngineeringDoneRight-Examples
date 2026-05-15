@@ -1,0 +1,14 @@
+package com.arc_e_tect.book.sedr.familyties.adapters.inbound.web.dto;
+
+import java.util.UUID;
+
+import lombok.Builder;
+import lombok.Value;
+
+@Value
+@Builder
+public class PersonResponse {
+    UUID id;
+    String firstName;
+    String lastName;
+}

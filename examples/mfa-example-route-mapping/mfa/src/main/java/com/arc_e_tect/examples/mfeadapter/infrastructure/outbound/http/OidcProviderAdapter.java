@@ -16,6 +16,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.time.Instant;
 import java.util.Map;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+
 /**
  * Adapter that communicates with the OIDC Provider for the OAuth2 Authorization
  * Code flow.
@@ -23,7 +25,7 @@ import java.util.Map;
  * <p>Token endpoint, revocation endpoint, and authorization URL construction
  * are all delegated to the OIDC Provider's standard endpoints.
  */
-@org.springframework.context.annotation.Profile("!payload-shaper && !route-mapping")
+@ConditionalOnProperty(name = "mfe-adapter.session.required", havingValue = "true")
 @Component
 public class OidcProviderAdapter implements IdentityProviderPort {
 

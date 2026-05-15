@@ -1,0 +1,359 @@
+= Security MFA Example
+:toc: left
+:toclevels: 2
+:icons: font
+:source-highlighter: rouge
+:doctype: article
+
+A working example of an MFA (Micro-Frontend Adapter) that implements a complete OAuth2 Authorization Code flow, session management, Authorization Service token swap, and API-key validation.
+
+The example uses WireMock to simulate both the OIDC Identity Provider (Keycloak-style paths) and the Authorization Service, so the entire five-service topology runs locally with no external dependencies.
+
+This example is derived from the route-mapping example.
+The route-rewriting and field-name-translation behaviours are preserved unchanged.
+The additions are:
+
+. An `OidcProviderAdapter` that drives the OAuth2 Authorization Code flow with the OIDC IdP and builds the authorization redirect URL.
+. An `AuthenticationController` that exposes `GET /auth/login`, `GET /auth/callback`, and `POST /auth/logout` endpoints.
+. An `AuthenticationApplicationService` that exchanges authorization codes for session objects, persists them, and handles logout.
+. An `AuthorizationServiceAdapter` that swaps the user token for an inner token enriched with RBAC/ABAC claims.
+. A `SecurityMfaProperties` `@ConfigurationProperties` class that carries the routing pattern, OIDC provider coordinates, and session settings from YAML configuration.
+. An Angular `authGuard` (functional `CanActivateFn`) that checks for the `mfa-session` cookie before allowing route activation.
+. An Angular `apiKeyInterceptor` (functional `HttpInterceptorFn`) that attaches gateway API-key headers to every outbound request.
+
+== Architecture
+
+[source,text]
+----
+Browser (Angular SPA)
+  │  GET /auth/login          → redirect to OIDC IdP
+  │  GET /auth/callback?code= → creates mfa-session cookie
+  │  POST /auth/logout        → expires mfa-session cookie
+  │  API calls + X-API-Key-Validated: true
+  ▼
+MFA (:8080, security-mfa profile)
+  │  OidcProviderAdapter  ─── OIDC authorization code exchange ──▶ WireMock IdP (:8082)
+  │  AuthorizationServiceAdapter ─ token swap ─────────────────▶ WireMock Authz (:8083)
+  │  ApiKeyValidator      ─── validates forwarded gateway headers
+  │  RegexRoutingStrategy ─── /v1/dutch/… → /v1/…
+  │  DutchToEnglishRequestTransformer / EnglishToDutchResponseTransformer
+  ▼
+MS Family Ties (:8081)
+----
+
+All security beans are activated exclusively by the `security-mfa` Spring profile via `@ConditionalOnProperty`.
+No MFA framework code was modified; the beans are injected via the SPI.
+
+=== OAuth2 Authorization Code Flow
+
+[source,text]
+----
+Browser             MFA                        WireMock IdP
+  │                 │                              │
+  ├─GET /auth/login▶│                              │
+  │                 ├──redirect to /auth?code=────▶│
+  │◀─302 redirect───┤                              │
+  │                 │                              │
+  ├─GET /callback──▶│                              │
+  │    ?code=xyz    ├──POST /token?code=xyz───────▶│
+  │                 │◀──access_token───────────────┤
+  │                 ├─swap token via AuthzService─▶│ WireMock Authz
+  │                 │◀─inner token (RBAC claims)───┤
+  │◀─mfa-session cookie (set-cookie header)────────┤
+  │                 │                              │
+  ├─API request     │                              │
+  │ +X-API-Key-Validated: true                     │
+  │────────────────▶│                              │
+  │                 ├─validate API key headers     │
+  │                 ├─forward to MS (inner token)  │
+  │◀──response──────┤                              │
+----
+
+=== Session Cookie Design
+
+The `mfa-session` cookie is set with `http-only: false` by deliberate design.
+Angular reads `document.cookie` in the `authGuard` to determine whether a session is active before activating a protected route.
+In a production deployment `http-only: true` would be used and the session check would be performed via a dedicated `/auth/session` API call instead.
+
+== Prerequisites
+
+* Java 21
+* Node.js 22 / npm 11
+* Docker & Docker Compose (for the containerised run)
+
+== Running Locally (without Docker)
+
+=== 1. Start WireMock Services
+
+Start both WireMock containers individually, or use Docker Compose for them only:
+
+[source,bash]
+----
+docker compose up wiremock-idp wiremock-authz
+----
+
+WireMock IdP starts on `http://localhost:8082`.
+WireMock Authz starts on `http://localhost:8083`.
+
+=== 2. Start the Microservice
+
+[source,bash]
+----
+cd ms
+export H2_PASSWORD=""
+./gradlew bootRun
+----
+
+The MS starts on `http://localhost:8081`.
+
+=== 3. Start the MFA (security-mfa profile)
+
+[source,bash]
+----
+cd mfa
+./gradlew bootRun \
+  -Dspring.profiles.active=security-mfa \
+  -Dmfe-adapter.oidc-provider.issuer-uri=http://localhost:8082/realms/mfa \
+  -Dmfe-adapter.authorization-service.base-url=http://localhost:8083 \
+  -Dmfe-adapter.microservice.base-url=http://localhost:8081
+----
+
+The MFA starts on `http://localhost:8080`.
+
+=== 4. Start the MFE (dev server)
+
+[source,bash]
+----
+cd mfe
+npm install
+npm start
+----
+
+The Angular dev server starts on `http://localhost:4200` and proxies API calls to `http://localhost:8080`.
+
+Open `http://localhost:4200` in a browser.
+The `authGuard` redirects unauthenticated users to `/auth/login`, which initiates the OAuth2 flow.
+
+== Running with Docker Compose
+
+[source,bash]
+----
+cd examples/mfa-example-security
+docker compose up --build
+----
+
+This builds and starts all five services in dependency order:
+
+[cols="1,1,2", options="header"]
+|===
+|Service          |External Port |Description
+|`ms`             |8081          |Family Ties microservice (H2 in-memory)
+|`wiremock-idp`   |8082          |WireMock OIDC IdP (Keycloak-style `/realms/mfa` paths)
+|`wiremock-authz` |8083          |WireMock Authorization Service (token swap)
+|`mfa`            |8080          |MFA proxy (security-mfa profile)
+|`mfe`            |4200          |Angular SPA served by `ng serve` (Angular dev server)
+|===
+
+Open `http://localhost:4200` once all health checks pass.
+
+To stop and remove volumes:
+
+[source,bash]
+----
+docker compose down -v
+----
+
+=== Running offline (pre-built artifacts)
+
+Use `docker-compose.prebuilt.yml` when Docker cannot reach external registries or package repositories during the build (e.g., behind a corporate firewall).
+Pre-build the `ms` and `mfa` services locally, then Docker copies the jars instead of running Gradle.
+
+[source,bash]
+----
+cd examples/mfa-example-security
+
+# Build ms
+cd ms  && ./gradlew :app:bootJar -x test --no-daemon && cd ..
+
+# Build mfa
+cd mfa && ./gradlew bootJar -x test --no-daemon       && cd ..
+
+# Start the stack using pre-built jars
+docker compose -f docker-compose.prebuilt.yml up --build
+----
+
+The `mfe` service always runs from source via a mounted volume and is not affected by this option.
+Docker will abort immediately with a `COPY` error if a jar is missing — this is intentional (fail fast).
+
+== Running Tests
+
+=== Microservice (100 % JaCoCo line coverage)
+
+[source,bash]
+----
+cd ms
+export H2_PASSWORD=""
+./gradlew check
+----
+
+=== MFA (100 % JaCoCo line coverage)
+
+[source,bash]
+----
+cd mfa
+./gradlew check
+----
+
+=== MFE (Angular unit tests)
+
+[source,bash]
+----
+cd mfe
+npm install
+npm test
+----
+
+== Security Features
+
+=== 1. OAuth2 Authorization Code Flow
+
+The `OidcProviderAdapter` drives the complete Authorization Code flow:
+
+* `buildAuthorizationUrl(callbackUri, state)` — constructs the IdP redirect URL with `response_type=code`, `client_id`, `scope=openid`, and `state`.
+* `exchangeCodeForToken(code, redirectUri)` — calls `POST /realms/mfa/protocol/openid-connect/token` and returns a `UserToken` (access token + subject extracted from the JWT payload).
+* `revokeToken(userToken)` — calls `POST /realms/mfa/protocol/openid-connect/revoke` on logout.
+
+=== 2. Session Management
+
+The `AuthenticationApplicationService` manages the session lifecycle:
+
+* On callback: creates a `Session` with a UUID session ID, the user token, and an expiry calculated from `ttl-minutes`.
+* The `SessionStorePort` SPI persists the session (JPA-backed `SessionEntity` in the default implementation).
+* On logout: revokes the token at the IdP and deletes the session.
+* `getValidSession(sessionId)` — validates that the session exists and is not expired; throws `AuthenticationException` otherwise.
+
+=== 3. Authorization Service Token Swap
+
+The `AuthorizationServiceAdapter` calls `POST /authz/token/swap` with the user token and receives an inner token enriched with RBAC/ABAC claims.
+The inner token is forwarded in the `Authorization` header to the microservice.
+
+=== 4. API-Key Validation
+
+The `ApiKeyValidator` SPI implementation (registered via `SecurityMfaConfiguration`) checks for the presence and value of the `X-API-Key-Validated: true` header on every inbound request.
+The MFE's `apiKeyInterceptor` adds this header (and `X-API-Key-Scope: READ_WRITE`) to every `HttpClient` request, simulating what an API gateway would inject.
+
+The Relationships tab (`RelationshipsService`) deliberately uses the native `fetch()` API instead of `HttpClient`, which bypasses the `apiKeyInterceptor`.
+As a result, the MFA receives requests to `/v1/dutch/familyties/relationships/…` with no `X-API-Key-Validated` header and immediately returns `403 Forbidden`.
+Opening the Relaties tab fires this probe automatically so the forbidden response is visible without any manual form submission.
+
+=== 5. Angular Route Guard
+
+The `authGuard` (`CanActivateFn`) reads `document.cookie` to check for the `mfa-session` cookie before activating any protected route.
+If the cookie is absent the guard navigates to `/auth/login`.
+
+== Field-Name Mapping
+
+The path-rewriting and Dutch/English field-name translation from the route-mapping example are preserved.
+
+[cols="1,1", options="header"]
+|===
+|Dutch (MFE / MFA surface)
+|English (MS surface)
+
+|`voornaam`
+|`firstName`
+
+|`achternaam`
+|`lastName`
+
+|`vanVoornaam`
+|`fromFirstName`
+
+|`vanAchternaam`
+|`fromLastName`
+
+|`naarVoornaam`
+|`toFirstName`
+
+|`naarAchternaam`
+|`toLastName`
+
+|`soort`
+|`type`
+
+|`vanPersoon`
+|`fromPerson`
+
+|`naarPersoon`
+|`toPerson`
+|===
+
+Field _values_ are not translated; only JSON key names are renamed.
+
+== Module Layout
+
+[source,text]
+----
+mfa-example-security/
+├── docker-compose.yml                   # orchestrates MFE + MFA + MS + WireMock IdP + WireMock Authz
+├── ms/                                  # Family Ties microservice (unchanged copy)
+├── mfa/                                 # Micro-Frontend Adapter (security-mfa profile)
+│   └── src/main/java/.../
+│       ├── application/
+│       │   └── service/
+│       │       └── AuthenticationApplicationService.java   # NEW: session lifecycle
+│       ├── domain/spi/
+│       │   ├── DutchToEnglishRequestTransformer.java       # inherited unchanged
+│       │   ├── EnglishToDutchResponseTransformer.java      # inherited unchanged
+│       │   └── RegexRoutingStrategy.java                   # inherited (uses SecurityMfaProperties)
+│       └── infrastructure/
+│           ├── config/
+│           │   ├── SecurityMfaConfiguration.java           # NEW: registers all security beans
+│           │   ├── SecurityMfaWebClientConfiguration.java  # NEW: WebClient for IdP + Authz + MS
+│           │   └── SecurityMfaProperties.java              # NEW: @ConfigurationProperties
+│           ├── inbound/web/
+│           │   └── AuthenticationController.java           # NEW: /auth/login, /callback, /logout
+│           └── outbound/http/
+│               ├── OidcProviderAdapter.java                # NEW: OAuth2 code exchange + revoke
+│               └── AuthorizationServiceAdapter.java        # NEW: inner-token swap
+├── mfe/                                 # Angular SPA
+│   ├── proxy.conf.json                  # dev-server proxy for local run (target: localhost:8080)
+│   ├── proxy.conf.docker.json           # dev-server proxy for Docker run (target: mfa:8080)
+│   └── src/app/
+│       ├── auth.guard.ts                # NEW: session-cookie guard (CanActivateFn)
+│       ├── api-key.interceptor.ts       # NEW: gateway header interceptor (HttpInterceptorFn)
+│       └── app.config.ts               # updated: registers guard + interceptor
+├── wiremock/
+│   ├── idp/mappings/                   # NEW: WireMock stubs for OIDC IdP
+│   │   ├── auth-endpoint.json          # GET /realms/mfa/protocol/openid-connect/auth
+│   │   ├── token-endpoint.json         # POST /realms/mfa/protocol/openid-connect/token
+│   │   └── revoke-endpoint.json        # POST /realms/mfa/protocol/openid-connect/revoke
+│   └── authz/mappings/
+│       └── token-swap.json             # NEW: POST /authz/token/swap
+└── openapi/                            # Dutch-named MFA API schemas (inherited)
+----
+
+== security-mfa Profile — What Is Activated / Disabled
+
+Under `spring.profiles.active=security-mfa`:
+
+.Activated by `@ConditionalOnProperty`
+[cols="1,2", options="header"]
+|===
+|Bean / Class                       |Condition
+|`OidcProviderAdapter`              |`mfe-adapter.session.required=true`
+|`AuthenticationController`         |`mfe-adapter.session.required=true`
+|`AuthenticationApplicationService` |`mfe-adapter.session.required=true`
+|`AuthorizationServiceAdapter`      |`mfe-adapter.authorization-service.required=true`
+|===
+
+.Disabled (not on classpath in this example)
+* Kafka (`KafkaAutoConfiguration` excluded) — no reference-data events
+* mTLS (`mfe-adapter.mtls.enabled=false`) — plain HTTP to keep the topology simple
+* Spring Security OAuth2 client auto-configuration — the MFA manages its own OIDC flow
+
+== Further Reading
+
+* link:../../mfe-adapter/docs/micro-frontend-adapter.adoc[MFE Adapter Architecture Guide] — the canonical reference for the MFA framework.
+* link:../../mfe-adapter/docs/examples/mfa-example-security.md[Implementation Instructions] — the original specification for this example, including design decisions and implementation notes.
+* link:../mfa-example-route-mapping/README.adoc[Route-Mapping MFA Example] — the immediate predecessor from which this example is derived.

@@ -1,4 +1,4 @@
-package com.arc_e_tect.book.sedr.familyties.adapters.in.web;
+package com.arc_e_tect.book.sedr.familyties.adapters.inbound.web;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;

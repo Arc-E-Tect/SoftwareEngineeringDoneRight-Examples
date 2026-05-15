@@ -1,0 +1,14 @@
+{
+  "name": "Get spouse relationships for Smith",
+  "request": {
+    "method": "GET",
+    "urlPath": "/v1/familyties/relationships/spouse/lastnames/Smith"
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": [
+      { "id": "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee", "firstName": "Ellen", "lastName": "Smith" }
+    ]
+  }
+}

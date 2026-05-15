@@ -1,0 +1,20 @@
+{
+  "name": "Add parent relationship success",
+  "request": {
+    "method": "POST",
+    "urlPath": "/v1/familyties/relationships",
+    "bodyPatterns": [
+      { "matchesJsonPath": "$[?(@.fromFirstName == 'John' && @.fromLastName == 'Smith' && @.toFirstName == 'Jane' && @.toLastName == 'Smith' && @.type == 'parent')]" }
+    ]
+  },
+  "response": {
+    "status": 201,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "id": "44444444-4444-4444-4444-444444444444",
+      "fromPersonId": "11111111-1111-1111-1111-111111111111",
+      "toPersonId": "22222222-2222-2222-2222-222222222222",
+      "type": "parent"
+    }
+  }
+}

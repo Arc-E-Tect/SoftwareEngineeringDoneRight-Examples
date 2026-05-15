@@ -20,6 +20,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
 import java.util.UUID;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+
 /**
  * Handles the OAuth2 Authorization Code flow with the OIDC Provider:
  * <ul>
@@ -30,7 +32,7 @@ import java.util.UUID;
  *       the user token at the OIDC Provider.</li>
  * </ul>
  */
-@org.springframework.context.annotation.Profile("!vanilla")
+@ConditionalOnProperty(name = "mfe-adapter.session.required", havingValue = "true")
 @RestController
 @RequestMapping("/auth")
 public class AuthenticationController {

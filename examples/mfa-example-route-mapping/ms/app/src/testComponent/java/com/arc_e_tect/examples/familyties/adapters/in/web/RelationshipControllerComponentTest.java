@@ -1,4 +1,4 @@
-package com.arc_e_tect.examples.familyties.adapters.in.web;
+package com.arc_e_tect.examples.familyties.adapters.inbound.web;
 
 import com.arc_e_tect.examples.familyties.application.domain.model.Person;
 import com.arc_e_tect.examples.familyties.application.domain.model.Relationship;

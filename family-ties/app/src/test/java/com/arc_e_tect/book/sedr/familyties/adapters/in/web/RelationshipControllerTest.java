@@ -1,4 +1,4 @@
-package com.arc_e_tect.book.sedr.familyties.adapters.in.web;
+package com.arc_e_tect.book.sedr.familyties.adapters.inbound.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.http.ResponseEntity;
 
-import com.arc_e_tect.book.sedr.familyties.adapters.in.web.dto.PersonResponse;
-import com.arc_e_tect.book.sedr.familyties.adapters.in.web.dto.RelationshipRequest;
+import com.arc_e_tect.book.sedr.familyties.adapters.inbound.web.dto.PersonResponse;
+import com.arc_e_tect.book.sedr.familyties.adapters.inbound.web.dto.RelationshipRequest;
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.Person;
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.Relationship;
 import com.arc_e_tect.book.sedr.familyties.application.domain.model.RelationshipType;

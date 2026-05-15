@@ -1,0 +1,22 @@
+{
+  "mappings": [
+    {
+      "name": "OIDC Authorization Endpoint",
+      "request": {
+        "method": "GET",
+        "urlPathPattern": "/realms/mfa/protocol/openid-connect/auth",
+        "queryParameters": {
+          "response_type": { "equalTo": "code" },
+          "client_id":     { "equalTo": "security-mfa-client" }
+        }
+      },
+      "response": {
+        "status": 302,
+        "headers": {
+          "Location": "{{request.query.redirect_uri}}?code=test-auth-code&state={{request.query.state}}"
+        },
+        "transformers": ["response-template"]
+      }
+    }
+  ]
+}
