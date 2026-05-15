@@ -1,0 +1,3 @@
+# Pre-built context: exclude source code and Gradle cache; keep app/build/libs/
+.gradle/
+app/src/
