@@ -1,0 +1,113 @@
+# Security-MFA Example — Docker Compose (pre-built)
+#
+# Use this file when running without internet access or behind a firewall.
+# Pre-build all services locally before starting:
+#
+#   cd ms  && ./gradlew :app:bootJar -x test --no-daemon && cd ..
+#   cd mfa && ./gradlew bootJar -x test --no-daemon       && cd ..
+#
+# Then start the stack:
+#
+#   docker compose -f docker-compose.prebuilt.yml up --build
+#
+# The mfe service always runs from source via a mounted volume (no pre-build needed).
+
+services:
+
+  # ── Microservice (Family Ties) ──────────────────────────────────────────────
+  ms:
+    build:
+      context: ./ms
+      dockerfile: Dockerfile-prebuilt
+    image: security-mfa/ms:latest
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      H2_PASSWORD: ""
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+
+  # ── WireMock OIDC Identity Provider (Keycloak-style) ────────────────────────
+  wiremock-idp:
+    image: wiremock/wiremock:latest
+    command:
+      - "--port=8080"
+      - "--local-response-templating"
+    volumes:
+      - ./wiremock/idp:/home/wiremock
+    ports:
+      - "8082:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  # ── WireMock Authorization Service (token swap) ──────────────────────────────
+  wiremock-authz:
+    image: wiremock/wiremock:latest
+    command:
+      - "--port=8080"
+    volumes:
+      - ./wiremock/authz:/home/wiremock
+    ports:
+      - "8083:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  # ── Micro-Frontend Adapter (security-mfa proxy) ──────────────────────────────
+  mfa:
+    build:
+      context: ./mfa
+      dockerfile: Dockerfile-prebuilt
+    image: security-mfa/mfa:latest
+    environment:
+      SPRING_PROFILES_ACTIVE: security-mfa
+      MFE_ADAPTER_MICROSERVICE_BASE_URL: http://ms:8081
+      MFE_ADAPTER_OIDC_PROVIDER_ISSUER_URI: http://wiremock-idp:8080/realms/mfa
+      # Public URL used in the browser redirect to the IdP (port 8082 is the published port for wiremock-idp)
+      MFE_ADAPTER_OIDC_PROVIDER_PUBLIC_ISSUER_URI: http://localhost:8082/realms/mfa
+      MFE_ADAPTER_OIDC_PROVIDER_CLIENT_ID: security-mfa-client
+      MFE_ADAPTER_OIDC_PROVIDER_CLIENT_SECRET: security-mfa-secret
+      MFE_ADAPTER_AUTHZ_BASE_URL: http://wiremock-authz:8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      ms:
+        condition: service_healthy
+      wiremock-idp:
+        condition: service_healthy
+      wiremock-authz:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+
+  # ── Micro-Frontend (Angular dev server) ──────────────────────────────────────
+  mfe:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./mfe:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run ng -- serve --proxy-config proxy.conf.docker.json --host 0.0.0.0 --poll 0"
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=2048
+    ports:
+      - "4200:4200"
+    depends_on:
+      mfa:
+        condition: service_healthy
