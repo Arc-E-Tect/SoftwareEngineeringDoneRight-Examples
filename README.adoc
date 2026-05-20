@@ -1,4 +1,4 @@
-= SoftwareEngineeringDoneRight-Examples
+= Software Engineering Done Right - The Micro-Frontend Adapter framework
 
 A repository with examples of software engineered in the right way.
 
